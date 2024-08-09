@@ -18,8 +18,14 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import Snackbar from '@mui/material/Snackbar';
 import SnackbarContent from '@mui/material/SnackbarContent';
+import Modal from '@mui/material/Modal';
+import Box from '@mui/material/Box';
 import axios from 'axios';
-
+import SettingsIcon from '@mui/icons-material/Settings';
+import CloseIcon from '@mui/icons-material/Close';
+import { FaCamera } from "react-icons/fa";
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 const Main = () => {
 
     const [anchorEl, setAnchorEl] = useState(null);
@@ -30,10 +36,10 @@ const Main = () => {
       setHighlight(highlight);
     };
 
-    const handleAddPost = (feeling, text, highlight) => {
-      const newPost = { feeling, text, highlight, id: Date.now() };
-      const updatedPosts = [...posts, newPost];
-      setPosts(updatedPosts);
+    const handleAddPost = (feeling, text, highlight, userId) => {
+      const newPost = { feeling, text, highlight, id: Date.now(), userId };
+      const existingPosts = JSON.parse(localStorage.getItem('posts')) || [];
+      const updatedPosts = [...existingPosts, newPost];
       localStorage.setItem('posts', JSON.stringify(updatedPosts));
     };
   
@@ -207,13 +213,13 @@ useEffect(() => {
       {/* Main content */}
       <div className="flex-1" style={{ marginLeft: '25%', padding: '16px' }}>
       {activeTab === 'profile' && !editProfile && (
-        <Profile  user={user} posts={posts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
+        <Profile  user={user} posts={posts} setPosts={setPosts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
       )}
       {editProfile && (
         <EditProfile handleGoBack={handleGoBack} />
       )}
         {activeTab === 'home' && <div>Home Content</div>}
-        {activeTab === 'search' && <div>Search Content</div>}
+        {activeTab === 'search' && <Search />}
         {activeTab === 'explore' && <div>Explore Content</div>}
         {activeTab === 'messages' && <div>Messages Content</div>}
         {activeTab === 'notification' && <div>Notification Content</div>}
@@ -224,15 +230,42 @@ useEffect(() => {
   );
 }
  
-const Profile =({handleGoBack,toggleEdit,posts})=>{
+const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   const [user, setUser] = useState(null);
   const [password, setPassword] = useState('');
   const [theme,setTheme]=useState('light')
   const [editProfile,setEditProfile]=useState(false)
 
+  const [selected,setSelected]=useState(null) //// show specific post state 
+  const [open, setOpen] = useState(false);
+  
+
+  const handleClickShow = (post)=>{      //// toggle the post 
+    setSelected(post)
+    setOpen(true)
+  }
 
 
+  const handleClosePost =()=>{    /// close post
+    setSelected(null)
+    setOpen(false)
+  }
 
+  const handleRemovePost = (postId, userId) => {
+    const updatedPosts = posts.filter(post => post.id !== postId || post.userId !== userId);
+    setPosts(updatedPosts);
+    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  };
+
+  const handleSaveChanges = (postId, newFeeling, newText) => {
+    const updatedPosts = posts.map((post) =>
+      post.id === postId && post.userId === user.id
+        ? { ...post, feeling: newFeeling, text: newText }
+        : post
+    );
+    setPosts(updatedPosts);
+    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -247,8 +280,9 @@ const Profile =({handleGoBack,toggleEdit,posts})=>{
     return <div>Loading user data...</div>;
   }
 
-
  
+
+  const userPosts = posts.filter(post => post.userId === user.id);
 
   const savedTheme = localStorage.getItem('color') || 'light';
 
@@ -268,10 +302,10 @@ const Profile =({handleGoBack,toggleEdit,posts})=>{
     >Edit Profile</button>
    </div>
     <div className="flex items-center gap-6">
-    <p>{posts.length} Posts</p>
+    <p>{userPosts.length} Posts</p>
     <p>friends</p>
     </div> 
-    <p>Description: {user.description}</p> 
+    <p>{user.description}</p> 
    </div>
     </div>
 
@@ -292,30 +326,284 @@ const Profile =({handleGoBack,toggleEdit,posts})=>{
     
         
     <div className="posts mt-4">
-        {posts.map((post) => (
-          <div key={post.id} className="post p-4 mb-4"  style={{
+    <div>
+  {userPosts.length === 0 ? (
+    <div className="flex flex-col  items-center justify-center mt-12">
+    <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+    <FaCamera style={{width:'125px',height:'125px',padding:'20px'}}/>
+    </div>
+      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+    </div>
+  ) : (
+    <div>
+      {userPosts.map((post) => (
+        <div
+          key={post.id}
+          className="post p-4 mb-4 flex justify-between"
+          style={{
             backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
             borderRadius: '5px',
             border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-          }}>
-            {post.highlight === 'Highlighted' &&
-            <div className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
-            style={{backgroundColor:'#a0b6cf',color:'#26374a'}}
-            >Highlighted</div>
-            }
+          }}
+        >
+          <div className="flex flex-col">
+            {post.highlight === 'Highlighted' && (
+              <div
+                className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+                style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+              >
+                Highlighted
+              </div>
+            )}
             <p><strong>Feeling:</strong> {post.feeling}</p>
             <p>{post.text}</p>
           </div>
-        ))}
+          <div className="flex gap-4">
+            <button variant="contained" color="primary" onClick={() => handleClickShow(post)}>
+              <SettingsIcon />
+            </button>
+            <button variant="contained" color="secondary" onClick={() => handleRemovePost(post.id, user.id)}>
+              <CloseIcon />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         <div className="emtpy3 opacity-0">111</div>
       </div>
 
         {editProfile && 
         <EditProfile />
         }
+        {selected && 
+        <ModalPost open={open} post={selected}   handleSaveChanges={handleSaveChanges}  handleClosePost={handleClosePost}/>
+        }
    </div>
   )
 }
+
+
+const Search = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [showUserProfile,setShowUserProfile]=useState(null)
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        // Fetch users from backend or localStorage
+        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
+        setAllUsers(response.data);
+      } catch (err) {
+        setError('Failed to fetch users');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(allUsers);
+    } else {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      const filtered = allUsers.filter(user =>
+        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, allUsers]);
+
+  const handleSearch = () => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(allUsers);
+    } else {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      const filtered = allUsers.filter(user =>
+        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+      );
+      setFilteredUsers(filtered);
+    }
+  };
+
+
+  const showUser = async  (user) => {
+    setShowUserProfile(user);
+
+    const allPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    const userPosts = allPosts.filter(post => post.userId === user.id);
+    try {
+      const response = await axios.get(`http://localhost:5000/posts?userId=${user.id}`); // Fetch posts by userId
+      setUserPosts(response.data);
+    } catch (err) {
+      setError('Failed to fetch user posts');
+    }
+    setUserPosts(userPosts);
+  };
+
+  const handleBackToSearch = () => {
+    setShowUserProfile(null);
+    setUserPosts([]);
+  };
+
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  const style = {
+   
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+ 
+  };
+
+  const style2 = {
+    backgroundColor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+     border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+   borderRadius:'10px',
+   width:'400px'
+ 
+  };
+
+  const adjustments = showUserProfile ? "justify-center items-stretch":"justify-center items-center"
+
+  return (
+    <div className={`flex flex-col ${adjustments}`} style={style}>
+      {showUserProfile ? (
+        <ProfileUsers
+        posts={userPosts}
+          user={showUserProfile}
+          onBack={handleBackToSearch}
+        />
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+              padding: '5px',
+              borderRadius: '5px',
+              border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+              width: '300px',
+            }}
+          />
+         
+          <div>
+            {searchQuery.trim() === '' ? (
+              <p className="mt-4">No searched user yet</p> // Message displayed when there's no query
+            ) : filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <div
+                  onClick={() => showUser(user)}
+                  className="usersSearch flex justify-between w-2/3 items-center gap-3 mt-3 p-2"
+                  style={style2}
+                  key={user.id}
+                >
+                  <div className="flex gap-3">
+                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px' }} />
+                  <div className="flex flex-col gap-2">
+                    <p>{user.nickname}</p> {/* Displaying 'nickname' */}
+                    <p>{user.description}</p> {/* Displaying 'description' */}
+                     
+                  </div>
+                  </div>
+                  <PersonAddIcon/>
+                </div>
+              ))
+            ) : (
+              <p className="mt-4">No users found</p> // Message displayed when no users match the query
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+
+const ProfileUsers = ({ user,posts,onBack }) => { // Destructure 'user' from props
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  // Dummy data for posts, adjust as needed
+ 
+
+  return (
+    <div className="flex justify-between w-full">
+       <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
+       <ArrowBackIosNewIcon />
+      </button>
+      <div className="flex gap-6 w-full ">
+        <div className="h-fit">
+        <Avatar sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
+        </div>
+        <div className="flex flex-col gap-3 w-full">
+          <div className="flex gap-3">
+            <h1 className="font-medium text-xl">{user.nickname}</h1>
+          </div>
+          <div className="flex items-center gap-6">
+            <p>{posts.length} posts</p> {/* Display number of posts */}
+          </div>
+          <p>{user.description}</p> {/* Displaying 'description' */}
+          <div className="flex justify-center items-center w-full  gap-4"
+          style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
+          >
+          <div className="flex justify-center mt-6 gap-6">
+            <div className="flex  gap-2 items-center justify-center">
+          <DynamicFeedIcon/>
+          <p>Posts</p>
+          </div>
+          <div className="flex gap-2">
+            <BookmarkIcon/>
+            <p>Saved</p>
+          </div>
+          </div>
+          </div>
+          {posts.length > 0 ? (
+        posts.map((post) => (
+          <div
+            key={post.id}
+            className="post p-4 mb-4 flex justify-between w-full"
+            style={{
+              backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+              borderRadius: '5px',
+              border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+            }}
+          >
+            <div className="flex flex-col">
+              {post.highlight === 'Highlighted' && (
+                <div
+                  className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+                  style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+                >
+                  Highlighted
+                </div>
+              )}
+              <p><strong>Feeling:</strong> {post.feeling}</p>
+              <p>{post.text}</p>
+            </div>
+            <div className="flex items-center">
+              <BookmarkBorderIcon/>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p>No posts available</p>
+      )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EditProfile = ({handleGoBack})=>{
   const [user, setUser] = useState(null);
@@ -453,6 +741,7 @@ const EditProfile = ({handleGoBack})=>{
 }
 
 const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
+
   const [feeling, setFeeling] = useState('');
   const [text, setText] = useState('');
   const [emptyError,setEmptyError]=useState(false)
@@ -470,7 +759,7 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (feeling && text) {
-      handleAddPost(feeling, text, highlight);
+      handleAddPost(feeling, text, highlight, user.id);
     }
     if (feeling.trim()==='' || text.trim()==='') {
       setEmptyError(true)
@@ -545,4 +834,101 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   </div>
   );
 };
+
+const ModalPost =({post,open,handleClosePost,handleSaveChanges })=>{
+
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  const [editedFeeling, setEditedFeeling] = useState(post.feeling);
+  const [editedText, setEditedText] = useState(post.text);
+
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+   border: savedTheme ==='light'?'1px solid #3b3f45':'1 px solid #dddfe2',
+   borderRadius:'10px',
+   
+    p: 4,
+  };
+
+  const handleFeelingChange = (e) => {
+    setEditedFeeling(e.target.value);
+  };
+
+  const handleTextChange = (e) => {
+    setEditedText(e.target.value);
+  };
+
+  const handleSave = () => {
+    handleSaveChanges(post.id, editedFeeling, editedText);
+    handleClosePost();
+  };
+
+  return(
+    <div>
+      <Modal
+       open={open}
+       onClose={handleClosePost}
+      >
+      <Box sx={style}>
+      {post.highlight === 'Highlighted' &&
+              <div className="high font-semibold text-xs p-1 w-fit -ml-8 -mt-8"
+                style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+              >Highlighted</div>
+            }
+            <p><strong>Feeling:</strong> {post.feeling}</p>
+            <p>{post.text}</p>
+            <div className="flex flex-col"  >
+              <p className="font-extralight text-sm mt-4">Settings</p>
+              <p><strong>Feeling:</strong></p>
+        <select
+          type="text"
+          value={editedFeeling}
+          onChange={handleFeelingChange}
+          className="input-field mt-2 mb-4 p-2"
+          style={{
+            backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+            borderRadius: '5px',
+            border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',}}
+        >
+         <option value="">How are you Feeling</option>
+          <option value="Happy">Happy</option>
+          <option value="Sad">Sad</option>
+          <option value="Angry">Angry</option>
+          <option value="Excited">Excited</option>
+        </select>
+        <p><strong>Text:</strong></p>
+        <textarea
+          value={editedText}
+          onChange={handleTextChange}
+          className="input-field mt-2 mb-4 p-2"
+          rows="3"
+          style={{
+            backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+            borderRadius: '5px',
+            border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',}}
+        />
+        <div className="flex justify-end gap-4">
+          <button onClick={handleSave}
+            style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+          className="save-button p-2 bg-blue-500 text-white rounded">
+            Save Changes
+          </button>
+          <button onClick={handleClosePost}
+          style={{  backgroundColor: '#cfa0a0',
+              color: '#4a2626',}} className="close-button p-2 bg-red-500 text-white rounded">
+            Cancel
+          </button>
+        </div>
+            </div>
+      </Box>
+      </Modal>
+    </div>
+  )
+}
 export default Main;

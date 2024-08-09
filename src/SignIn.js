@@ -82,6 +82,18 @@ const SignIn = () => {
       }
     };
 
+    const handleUserSignUp = (newUser) => {
+      const storedUsers = localStorage.getItem('users');
+      const usersArray = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      // Add the new user to the array
+      usersArray.push(newUser);
+      
+      // Save the updated array back to localStorage
+      localStorage.setItem('users', JSON.stringify(usersArray));
+  };
+
+
     const navigate = useNavigate();
   
     const mutation = useMutation((newUser) => {

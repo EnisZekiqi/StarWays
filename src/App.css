@@ -96,3 +96,13 @@ body{
   border-top-left-radius: 5px;
   border-bottom-right-radius: 10px;
 }
+.drawerSearch{
+transform: translateX(-50);
+transition: all 0.3s ease;
+}
+.drawerSearchOpen{
+  transform: translateX(10);
+}
+.usersSearch:hover{
+border:1px solid #a0b6cf ;
+}
