@@ -24,7 +24,11 @@ import axios from 'axios';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloseIcon from '@mui/icons-material/Close';
 import { FaCamera } from "react-icons/fa";
+import FavoriteBorder from '@mui/icons-material/FavoriteBorder';
+import Favorite from '@mui/icons-material/Favorite';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import Checkbox from '@mui/material/Checkbox';
+
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 const Main = () => {
 
@@ -42,6 +46,8 @@ const Main = () => {
       const updatedPosts = [...existingPosts, newPost];
       localStorage.setItem('posts', JSON.stringify(updatedPosts));
     };
+
+    
   
     const open = Boolean(anchorEl);
   
@@ -160,7 +166,9 @@ useEffect(() => {
         </div>
         <div onClick={() => handleTabChange('notification')} id="notifi"
          className={getItemClass('notification')}>
+            
             <NotificationsIcon/>
+            
             <p>Notification</p>
         </div>
         <div onClick={() => handleTabChange('create')} id="add"
@@ -222,7 +230,7 @@ useEffect(() => {
         {activeTab === 'search' && <Search />}
         {activeTab === 'explore' && <div>Explore Content</div>}
         {activeTab === 'messages' && <div>Messages Content</div>}
-        {activeTab === 'notification' && <div>Notification Content</div>}
+        {activeTab === 'notification' && <Notifications user={user} />}
         {activeTab === 'create' &&   <Create highlight={highlight} toggleHighlight={toggleHighlight} user={user} handleAddPost={handleAddPost} />}
       </div>
       
@@ -478,6 +486,7 @@ const Search = () => {
     <div className={`flex flex-col ${adjustments}`} style={style}>
       {showUserProfile ? (
         <ProfileUsers
+        allUsers={allUsers}
         posts={userPosts}
           user={showUserProfile}
           onBack={handleBackToSearch}
@@ -531,14 +540,120 @@ const Search = () => {
 };
 
 
-const ProfileUsers = ({ user,posts,onBack }) => { // Destructure 'user' from props
+
+
+const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user' from props
   const savedTheme = localStorage.getItem('color') || 'light';
 
   // Dummy data for posts, adjust as needed
+  const [favorites, setFavorites] = useState({});
+  const [bookmarks, setBookmarks] = useState({});
+
+  useEffect(() => {
+    const storedBookmarks = JSON.parse(localStorage.getItem('bookmarks')) || {};
+    setBookmarks(storedBookmarks);
+  }, []);
+
+  useEffect(() => {
+    const storedFavorites = JSON.parse(localStorage.getItem('favorites')) || {};
+    setFavorites(storedFavorites);
+  }, []);
+
+  const handleToggleFavorite = (postId) => {
+    const currentUserId = user.id;
+    const currentUserNickname = user.nickname; // Get the nickname of the user performing the action
+    const updatedFavorites = { ...favorites };
+  
+    if (!updatedFavorites[currentUserId]) {
+      updatedFavorites[currentUserId] = [];
+    }
+  
+    if (updatedFavorites[currentUserId].includes(postId)) {
+      updatedFavorites[currentUserId] = updatedFavorites[currentUserId].filter(id => id !== postId);
+    } else {
+      updatedFavorites[currentUserId].push(postId);
+  
+      const post = posts.find(post => post.id === postId);
+      const postOwnerId = post.userId;
+  
+      // Create a notification only if the post owner is not the current user
+      if (postOwnerId !== currentUserId) {
+        const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+        const userNotifications = storedNotifications[postOwnerId] || [];
+  
+        userNotifications.push({
+          senderNickname: currentUserNickname, // Use the nickname of the user performing the action
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          id: Date.now(),
+        });
+  
+        storedNotifications[postOwnerId] = userNotifications;
+        localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+      }
+    }
+  
+    setFavorites(updatedFavorites);
+    localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+  };
+  
+
+  const handleToggleBookmark = (postId) => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || typeof storedUser !== 'object') {
+      console.error('Logged-in user data is invalid or missing');
+      return;
+    }
+  
+    const currentUserNickname = storedUser.nickname; // Get the logged-in user's nickname
+    const currentUserId = storedUser.id; // Get the logged-in user's ID
+  
+    const post = posts.find(post => post.id === postId);
+    if (!post) return;
+  
+    const postOwnerId = post.userId; // The user who owns the post
+  
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[postOwnerId] || [];
+  
+    const updatedBookmarks = { ...bookmarks };
+    const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
+  
+    if (isBookmarked) {
+      // Remove from bookmarks
+      updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
+    } else {
+      // Add to bookmarks
+      updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
+  
+      // Add notification
+      userNotifications.push({
+        senderNickname: currentUserNickname, // Use the logged-in user's nickname
+        postText: post.text,
+        timestamp: new Date().toISOString(),
+        action: 'Liked', // Action taken by the logged-in user
+        id: Date.now(),
+      });
+    }
+  
+    // Update bookmarks and notifications in localStorage
+    setBookmarks(updatedBookmarks);
+    localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+  
+    storedNotifications[postOwnerId] = userNotifications;
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  };
+  
+  
+  
+  
+  
+
+  // Handle toggling bookmark (save)
  
 
   return (
-    <div className="flex justify-between w-full">
+    <div className="flex justify-between w-full mt-12">
        <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
        <ArrowBackIosNewIcon />
       </button>
@@ -592,7 +707,18 @@ const ProfileUsers = ({ user,posts,onBack }) => { // Destructure 'user' from pro
               <p>{post.text}</p>
             </div>
             <div className="flex items-center">
-              <BookmarkBorderIcon/>
+            <Checkbox
+                    icon={<FavoriteBorder />}
+                    checkedIcon={<Favorite />}
+                    checked={favorites[user.id]?.includes(post.id)}
+                    onChange={() => handleToggleFavorite(post.id)}
+                  />
+                  <Checkbox
+                    icon={<BookmarkBorderIcon />}
+                    checkedIcon={<BookmarkIcon />}
+                    checked={bookmarks[user.id]?.includes(post.id)}
+                    onChange={() => handleToggleBookmark(post.id)} 
+                  />
             </div>
           </div>
         ))
@@ -604,6 +730,56 @@ const ProfileUsers = ({ user,posts,onBack }) => { // Destructure 'user' from pro
     </div>
   );
 };
+const Notifications = ({ user }) => {
+  const [notifications, setNotifications] = useState([]);
+
+  
+
+  useEffect(() => {
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    setNotifications(storedNotifications[user.id] || []);
+  }, [user.id]);
+
+  const markAsRead = (notificationId) => {
+    const updatedNotifications = notifications.filter(notification => notification.id !== notificationId);
+    setNotifications(updatedNotifications);
+
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    storedNotifications[user.id] = updatedNotifications;
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    storedNotifications[user.id] = [];
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  };
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  return (
+    <div className="notifications p-4">
+      <h2 style={{  color:savedTheme === 'light'?'#232629':'#fbfbfb' }} className="font-bold text-2xl mb-2">Notifications</h2>
+      {notifications.length > 0 ? (
+        <>
+          {notifications.map((notification) => (
+            <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background:savedTheme === 'light'? '#fbfbfb':'#232629', color:savedTheme === 'light'?'#232629':'#fbfbfb' , borderRadius: '10px',border:savedTheme === 'light'?'1px solid #dddfe2':'1px solid #3b3f45' }}>
+            <p className="font-normal text-sm" key={notification.id}>
+            <strong style={{color:savedTheme === 'light'?'#7e9cbe':'#c2d0e0'}} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} your post: <em >{notification.postText}</em>
+             </p>
+              <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
+            </div>
+          ))}
+          <button  onClick={clearAllNotifications} style={{ marginTop: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '10px', padding: '10px' }}>Clear All Notifications</button>
+        </>
+      ) : (
+        <p>No notifications available</p>
+      )}
+    </div>
+  );
+};
+
+
 
 const EditProfile = ({handleGoBack})=>{
   const [user, setUser] = useState(null);
