@@ -28,14 +28,29 @@ import FavoriteBorder from '@mui/icons-material/FavoriteBorder';
 import Favorite from '@mui/icons-material/Favorite';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import Checkbox from '@mui/material/Checkbox';
-
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
+import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
 const Main = () => {
 
+  const [user, setUser] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [posts, setPosts] = useState([]);
     const [highlight, setHighlight] = useState('Not Highlighted');
 
+    const [notifications, setNotifications] = useState([]);
+    useEffect(() => {
+      if (user) {
+        const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+        const userNotifications = storedNotifications[user.id] || [];
+        setNotificationsCount(userNotifications.length);
+      }
+    }, [user]);
+const [notificationsCount, setNotificationsCount] = useState(0);
+
+
+    
     const toggleHighlight = (highlight) => {
       setHighlight(highlight);
     };
@@ -66,7 +81,18 @@ const Main = () => {
 ///////Sidebar functions  /////
 const [activeTab, setActiveTab] = useState('home');
 
+
+
 const handleTabChange = (tab) => {
+  if (tab === 'notification' && user) {
+    // Fetch notifications from localStorage when the notification tab is clicked
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[user.id] || [];
+    
+    // Set the notifications and clear the count
+    setNotifications(userNotifications);
+    setNotificationsCount(0); // Clear the notification count once the tab is clicked
+  }
   setActiveTab(tab);
   setEditProfile(false)
 };
@@ -88,7 +114,7 @@ useEffect(() => {
   }
 }, ['home','search','explore','messages','notification','create']);
 
-    const [user, setUser] = useState(null);
+   
     const [theme,setTheme]=useState('light')
     useEffect(() => {
       const storedUser = localStorage.getItem('user');
@@ -166,10 +192,11 @@ useEffect(() => {
         </div>
         <div onClick={() => handleTabChange('notification')} id="notifi"
          className={getItemClass('notification')}>
-            
+          
             <NotificationsIcon/>
             
             <p>Notification</p>
+            <p className="px-2 font-bold" style={{borderRadius:'50%',background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}}> {notificationsCount > 0 && `${notificationsCount}`}</p> {/* Show count only if > 0 */}
         </div>
         <div onClick={() => handleTabChange('create')} id="add"
         className={getItemClass('create')}>
@@ -338,7 +365,7 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   {userPosts.length === 0 ? (
     <div className="flex flex-col  items-center justify-center mt-12">
     <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-    <FaCamera style={{width:'125px',height:'125px',padding:'20px'}}/>
+    <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px'}}/>
     </div>
       <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
     </div>
@@ -509,7 +536,12 @@ const Search = () => {
          
           <div>
             {searchQuery.trim() === '' ? (
-              <p className="mt-4">No searched user yet</p> // Message displayed when there's no query
+              <div className="flex flex-col  items-center justify-center mt-12">
+              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+              </div>
+                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Searched user yet</p>
+              </div> // Message displayed when there's no query
             ) : filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
                 <div
@@ -526,11 +558,16 @@ const Search = () => {
                      
                   </div>
                   </div>
-                  <PersonAddIcon/>
+                  
                 </div>
               ))
             ) : (
-              <p className="mt-4">No users found</p> // Message displayed when no users match the query
+              <div className="flex flex-col  items-center justify-center mt-12">
+              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+              </div>
+                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Searched user yet</p>
+              </div>// Message displayed when no users match the query
             )}
           </div>
         </>
@@ -605,48 +642,98 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       return;
     }
   
-    const currentUserNickname = storedUser.nickname; // Get the logged-in user's nickname
-    const currentUserId = storedUser.id; // Get the logged-in user's ID
+    const currentUserNickname = storedUser.nickname;
+    const currentUserId = storedUser.id;
   
     const post = posts.find(post => post.id === postId);
     if (!post) return;
   
-    const postOwnerId = post.userId; // The user who owns the post
+    const postOwnerId = post.userId;
   
     const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
     const userNotifications = storedNotifications[postOwnerId] || [];
   
-    const updatedBookmarks = { ...bookmarks };
-    const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
+    setBookmarks(prevBookmarks => {
+      const updatedBookmarks = { ...prevBookmarks };
+      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
   
-    if (isBookmarked) {
-      // Remove from bookmarks
-      updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
-    } else {
-      // Add to bookmarks
-      updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
+      if (isBookmarked) {
+        // Remove from bookmarks
+        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
+      } else {
+        // Add to bookmarks
+        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
   
-      // Add notification
-      userNotifications.push({
-        senderNickname: currentUserNickname, // Use the logged-in user's nickname
-        postText: post.text,
-        timestamp: new Date().toISOString(),
-        action: 'Liked', // Action taken by the logged-in user
-        id: Date.now(),
-      });
-    }
+        // Add notification
+        userNotifications.push({
+          senderNickname: currentUserNickname,
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          action: 'Liked',
+          action2:'your post :',
+          id: Date.now(),
+        });
+      }
   
-    // Update bookmarks and notifications in localStorage
-    setBookmarks(updatedBookmarks);
-    localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+      // Update notifications in localStorage
+      storedNotifications[postOwnerId] = userNotifications;
+      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
   
-    storedNotifications[postOwnerId] = userNotifications;
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+      // Update bookmarks in localStorage
+      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+  
+      console.log('Updated bookmarks:', updatedBookmarks); // Debugging line
+  
+      setLikedPosts(prevLikedPosts => ({
+        ...prevLikedPosts,
+        [postId]: !isBookmarked, // Toggle the liked state for this post
+      }));
+
+      return updatedBookmarks;
+    });
   };
   
+  const [likedPosts, setLikedPosts] = useState({});
   
   
-  
+  const handleAddFriend = () => {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser) return;
+
+    const currentUserId = currentUser.id;
+    const currentUserNickname = currentUser.nickname;
+
+    const postOwnerId = user.id;
+
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[postOwnerId] || [];
+
+    userNotifications.push({
+      senderNickname: currentUserNickname,
+      action: 'Sent a friend request',
+      timestamp: new Date().toISOString(),
+      id: Date.now(),
+    });
+
+    storedNotifications[postOwnerId] = userNotifications;
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+
+    // Add the friend request to the current user's notifications
+    const currentUserNotifications = storedNotifications[currentUserId] || [];
+    currentUserNotifications.push({
+      senderNickname: user.nickname,
+      action: 'Received a friend request',
+      timestamp: new Date().toISOString(),
+      id: Date.now(),
+    });
+
+    storedNotifications[currentUserId] = currentUserNotifications;
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  };
+
+  const handleSendMessage = () => {
+    // Your message sending logic here
+  };
   
 
   // Handle toggling bookmark (save)
@@ -666,9 +753,14 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
             <h1 className="font-medium text-xl">{user.nickname}</h1>
           </div>
           <div className="flex items-center gap-6">
-            <p>{posts.length} posts</p> {/* Display number of posts */}
+            <p>{posts.length} posts</p>
+            <p>{user.friends?.length || 0} friends</p> 
           </div>
-          <p>{user.description}</p> {/* Displaying 'description' */}
+          <p>{user.description}</p>
+          <div className="flex gap-4 mt-4">
+            <button onClick={handleAddFriend} className="bg-blue-500 text-white px-4 py-2 rounded">Add Friend</button>
+            <button onClick={handleSendMessage} className="bg-green-500 text-white px-4 py-2 rounded">Send Message</button>
+          </div> {/* Displaying 'description' */}
           <div className="flex justify-center items-center w-full  gap-4"
           style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
           >
@@ -708,28 +800,29 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
             </div>
             <div className="flex items-center">
             <Checkbox
-                    icon={<FavoriteBorder />}
-                    checkedIcon={<Favorite />}
-                    checked={favorites[user.id]?.includes(post.id)}
-                    onChange={() => handleToggleFavorite(post.id)}
-                  />
-                  <Checkbox
-                    icon={<BookmarkBorderIcon />}
-                    checkedIcon={<BookmarkIcon />}
-                    checked={bookmarks[user.id]?.includes(post.id)}
-                    onChange={() => handleToggleBookmark(post.id)} 
-                  />
+            icon={likedPosts[post.id] ? <Favorite /> : <FavoriteBorder />}
+            checkedIcon={likedPosts[post.id] ? <FavoriteBorder /> : <Favorite />}
+            checked={bookmarks[user.id]?.includes(post.id)}
+            onChange={() => handleToggleBookmark(post.id)}
+          />
             </div>
           </div>
         ))
       ) : (
-        <p>No posts available</p>
+        <div className="flex flex-col  items-center justify-center mt-12">
+        <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+        <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+        </div>
+          <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+        </div>
       )}
         </div>
       </div>
     </div>
   );
 };
+
+
 const Notifications = ({ user }) => {
   const [notifications, setNotifications] = useState([]);
 
@@ -765,7 +858,7 @@ const Notifications = ({ user }) => {
           {notifications.map((notification) => (
             <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background:savedTheme === 'light'? '#fbfbfb':'#232629', color:savedTheme === 'light'?'#232629':'#fbfbfb' , borderRadius: '10px',border:savedTheme === 'light'?'1px solid #dddfe2':'1px solid #3b3f45' }}>
             <p className="font-normal text-sm" key={notification.id}>
-            <strong style={{color:savedTheme === 'light'?'#7e9cbe':'#c2d0e0'}} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} your post: <em >{notification.postText}</em>
+            <strong style={{color:savedTheme === 'light'?'#7e9cbe':'#c2d0e0'}} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em >{notification.postText}</em>
              </p>
               <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
             </div>
@@ -773,7 +866,12 @@ const Notifications = ({ user }) => {
           <button  onClick={clearAllNotifications} style={{ marginTop: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '10px', padding: '10px' }}>Clear All Notifications</button>
         </>
       ) : (
-        <p>No notifications available</p>
+        <div className="flex flex-col  items-center justify-center mt-12">
+        <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+        <NotificationsOffIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+        </div>
+          <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Notification yet</p>
+        </div>
       )}
     </div>
   );
