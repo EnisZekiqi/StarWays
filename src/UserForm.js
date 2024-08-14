@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { useMutation, useQueryClient,useQuery  } from 'react-query';
 import axios from 'axios';
 import Snackbar from '@mui/material/Snackbar';
@@ -6,6 +6,9 @@ import Cookies from 'js-cookie';
 import IconButton from '@mui/material/IconButton';
 import { useNavigate  } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+
 const UserForm = ({ }) => {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
@@ -14,6 +17,7 @@ const UserForm = ({ }) => {
   const [error, setError] = useState('');
   const [userError,setUserError]=useState(false) //// same username attempt
   const [loading, setLoading] = useState(false);
+  const [isVisible,setIsVisible]=useState(false)
   const navigate =useNavigate()
   
 
@@ -86,6 +90,7 @@ const styles = {
 
 
 
+
   return (
    
     <div>
@@ -102,14 +107,18 @@ const styles = {
         />
       </div>
       <div className='w-full'>
-        
-        <input
-          type="password"
+        <div htmlFor="" className='relative'>
+        <div onClick={()=> setIsVisible(prevMode => !prevMode)}>
+       {isVisible ?  <VisibilityIcon className='absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500'/> :  <VisibilityOffIcon className='absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500'/>}
+        </div>
+    <input
+          type={isVisible ? "text" :"password"}
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={styles.input}
         />
+        </div>
       </div>
       
 

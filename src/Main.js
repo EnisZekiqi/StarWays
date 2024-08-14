@@ -309,6 +309,8 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
 
     }
    
+  
+
   }, []);
 
   if (!user) {
@@ -566,7 +568,7 @@ const Search = () => {
               <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
               <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
               </div>
-                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Searched user yet</p>
+                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No users</p>
               </div>// Message displayed when no users match the query
             )}
           </div>
@@ -589,6 +591,19 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   useEffect(() => {
     const storedBookmarks = JSON.parse(localStorage.getItem('bookmarks')) || {};
     setBookmarks(storedBookmarks);
+   
+  }, []);
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || typeof storedUser !== 'object') {
+      console.error('Logged-in user data is invalid or missing');
+      return;
+    }
+  
+    const currentUserId = storedUser.id;
+    const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+    setLikedPosts(savedLiked[currentUserId] || {});
   }, []);
 
   useEffect(() => {
@@ -669,8 +684,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
           senderNickname: currentUserNickname,
           postText: post.text,
           timestamp: new Date().toISOString(),
-          action: 'Liked',
-          action2:'your post :',
+          action: 'liked',
+          action2: 'your post:',
           id: Date.now(),
         });
       }
@@ -682,13 +697,25 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       // Update bookmarks in localStorage
       localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
   
-      console.log('Updated bookmarks:', updatedBookmarks); // Debugging line
+      // Handle liking the post and updating likedPosts
+      setLikedPosts(prevLikedPosts => {
+        const updatedLikedPosts = { ...prevLikedPosts };
   
-      setLikedPosts(prevLikedPosts => ({
-        ...prevLikedPosts,
-        [postId]: !isBookmarked, // Toggle the liked state for this post
-      }));
-
+        if (updatedLikedPosts[postId]) {
+          delete updatedLikedPosts[postId]; // Unliking the post
+        } else {
+          updatedLikedPosts[postId] = true; // Liking the post
+        }
+  
+        // Update liked posts in localStorage
+        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+        savedLiked[currentUserId] = updatedLikedPosts;
+        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
+  
+        // Update the state
+        return updatedLikedPosts;
+      });
+  
       return updatedBookmarks;
     });
   };
@@ -696,45 +723,139 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   const [likedPosts, setLikedPosts] = useState({});
   
   
+  const [friendStatus, setFriendStatus] = useState('');
+
+  // Fetch the friend status from localStorage or other source
+  useEffect(() => {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser) return;
+  
+    const currentUserId = currentUser.id;
+    const postOwnerId = user.id;
+  
+    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+    const currentUserFriends = storedFriends[currentUserId] || [];
+    
+    // Check if the friend request is already sent
+    if (currentUserFriends.includes(postOwnerId)) {
+      setFriendStatus('Friends');
+    } else {
+      setFriendStatus('Add Friend');
+    }
+  
+    // Check if a friend request is pending
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const postOwnerNotifications = storedNotifications[postOwnerId] || [];
+    const pendingRequest = postOwnerNotifications.find(notification => 
+      notification.senderNickname === currentUser.nickname && 
+      notification.action === 'Sent a friend request'
+    );
+  
+    if (pendingRequest) {
+      setFriendStatus('Request Sent');
+    }
+  }, [user.id]);
+
   const handleAddFriend = () => {
     const currentUser = JSON.parse(localStorage.getItem('user'));
     if (!currentUser) return;
-
+  
     const currentUserId = currentUser.id;
     const currentUserNickname = currentUser.nickname;
-
     const postOwnerId = user.id;
-
+  
     const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
     const userNotifications = storedNotifications[postOwnerId] || [];
-
+  
+    // Check if there's already a pending request
+    if (userNotifications.some(notification => notification.senderNickname === currentUserNickname && notification.action === 'Sent a friend request')) {
+      return;
+    }
+  
     userNotifications.push({
+      senderId: currentUserId, // Add senderId for later use
       senderNickname: currentUserNickname,
       action: 'Sent a friend request',
       timestamp: new Date().toISOString(),
       id: Date.now(),
     });
-
+  
     storedNotifications[postOwnerId] = userNotifications;
     localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  
+    setFriendStatus('Request Sent');
+  };
 
-    // Add the friend request to the current user's notifications
-    const currentUserNotifications = storedNotifications[currentUserId] || [];
-    currentUserNotifications.push({
-      senderNickname: user.nickname,
-      action: 'Received a friend request',
-      timestamp: new Date().toISOString(),
-      id: Date.now(),
-    });
+  const [ModalConfirmation,setModalConfirmation]=useState(false)
 
-    storedNotifications[currentUserId] = currentUserNotifications;
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+
+  const handleCloseConfirmation =()=>{    /// close post
+    
+    setModalConfirmation(false)
+  }
+
+  const handleRemoveFriend = () => {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser) return;
+  
+    const currentUserId = currentUser.id;
+    const postOwnerId = user.id;
+  
+    // Retrieve and update the friends data from local storage
+    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+    
+    // Remove the friend from the current user's friend list
+    if (storedFriends[currentUserId]) {
+      storedFriends[currentUserId] = storedFriends[currentUserId].filter(friendId => friendId !== postOwnerId);
+    }
+    
+    // Remove the current user from the friend's friend list
+    if (storedFriends[postOwnerId]) {
+      storedFriends[postOwnerId] = storedFriends[postOwnerId].filter(friendId => friendId !== currentUserId);
+    }
+  
+    // Save the updated friends list back to local storage
+    localStorage.setItem('friends', JSON.stringify(storedFriends));
+  
+    // Update the friend status to 'Add Friend' after removal
+    setFriendStatus('Add Friend');
+    
+    // Close the confirmation modal if applicable
+    setModalConfirmation(false);
+  };
+
+
+  const [friendCount, setFriendCount] = useState(0);
+  useEffect(() => {
+    // Get friend count when the component mounts or user changes
+    setFriendCount(getFriendCount(user.id));
+  }, [user.id]);
+
+  const getFriendCount = (userId) => {
+    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+    const userFriends = storedFriends[userId] || [];
+    return userFriends.length;
   };
 
   const handleSendMessage = () => {
     // Your message sending logic here
   };
   
+
+
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+   border: savedTheme ==='light'?'1px solid #3b3f45':'1 px solid #dddfe2',
+   borderRadius:'10px',
+   
+    p: 4,
+  };
 
   // Handle toggling bookmark (save)
  
@@ -753,13 +874,27 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
             <h1 className="font-medium text-xl">{user.nickname}</h1>
           </div>
           <div className="flex items-center gap-6">
-            <p>{posts.length} posts</p>
-            <p>{user.friends?.length || 0} friends</p> 
+            <p>{posts.length} <b className="font-semibold ml-1">posts</b> </p>
+            <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
           </div>
           <p>{user.description}</p>
           <div className="flex gap-4 mt-4">
-            <button onClick={handleAddFriend} className="bg-blue-500 text-white px-4 py-2 rounded">Add Friend</button>
-            <button onClick={handleSendMessage} className="bg-green-500 text-white px-4 py-2 rounded">Send Message</button>
+          {friendStatus === 'Add Friend' && (
+              <button  style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
+                Add Friend
+              </button>
+            )}
+            {friendStatus === 'Request Sent' && (
+              <button  style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} className=" text-white px-4 py-2 rounded" disabled>
+                Request Sent
+              </button>
+            )}
+            {friendStatus === 'Friends' && (
+              <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} className=" px-4 py-2 rounded" >
+                Friends
+              </button>
+            )}
+            <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} onClick={handleSendMessage} className=" px-4 py-2 rounded">Send Message</button>
           </div> {/* Displaying 'description' */}
           <div className="flex justify-center items-center w-full  gap-4"
           style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
@@ -800,11 +935,11 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
             </div>
             <div className="flex items-center">
             <Checkbox
-            icon={likedPosts[post.id] ? <Favorite /> : <FavoriteBorder />}
-            checkedIcon={likedPosts[post.id] ? <FavoriteBorder /> : <Favorite />}
-            checked={bookmarks[user.id]?.includes(post.id)}
-            onChange={() => handleToggleBookmark(post.id)}
-          />
+                    icon={<FavoriteBorder />}
+                    checkedIcon={<Favorite />}
+                    checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
+                    onChange={() => handleToggleBookmark(post.id)}
+                  />
             </div>
           </div>
         ))
@@ -818,6 +953,24 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       )}
         </div>
       </div>
+      {ModalConfirmation && 
+      <div>
+        <Modal
+       open={ModalConfirmation}
+       onClose={handleCloseConfirmation}
+      >
+      <Box sx={style}>
+        <div className="flex flex-col">
+          <p>Are you sure you want to remove <b>{user.nickname}</b> from friends</p>
+          <div className="flex gap-3 justify-end mt-4">
+          <button style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleRemoveFriend}>Confirm</button>
+          <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} onClick={handleCloseConfirmation}>Cancle</button>
+          </div>
+        </div>
+      </Box>  
+      </Modal>
+      </div>
+      }
     </div>
   );
 };
@@ -826,7 +979,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
 const Notifications = ({ user }) => {
   const [notifications, setNotifications] = useState([]);
 
-  
+  const [friendStatus, setFriendStatus] = useState('');
+  const [friendCount, setFriendCount] = useState(user.friends?.length || 0);
 
   useEffect(() => {
     const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
@@ -842,40 +996,95 @@ const Notifications = ({ user }) => {
     localStorage.setItem('notifications', JSON.stringify(storedNotifications));
   };
 
+  const handleAcceptFriend = (notification) => {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser) return;
+  
+    const currentUserId = currentUser.id;
+    const senderId = notification.senderId; // Ensure senderId is saved when sending the friend request
+  
+    // Update friend lists
+    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+    if (!storedFriends[currentUserId]) storedFriends[currentUserId] = [];
+    if (!storedFriends[senderId]) storedFriends[senderId] = [];
+  
+    // Add each other to friends list
+    if (!storedFriends[currentUserId].includes(senderId)) {
+      storedFriends[currentUserId].push(senderId);
+    }
+    if (!storedFriends[senderId].includes(currentUserId)) {
+      storedFriends[senderId].push(currentUserId);
+    }
+  
+    localStorage.setItem('friends', JSON.stringify(storedFriends));
+  
+    // Send notification to the sender
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const senderNotifications = storedNotifications[senderId] || [];
+    senderNotifications.push({
+      senderNickname: currentUser.nickname,
+      action: 'accepted your friend request',
+      timestamp: new Date().toISOString(),
+      id: Date.now(),
+    });
+  
+    storedNotifications[senderId] = senderNotifications;
+    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  
+    // Mark the request as accepted
+    markAsRead(notification.id);
+  
+    // Update UI
+    setFriendStatus('Friends');
+    setFriendCount(prevCount => prevCount + 1);
+  };
+  
+
   const clearAllNotifications = () => {
     setNotifications([]);
     const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
     storedNotifications[user.id] = [];
     localStorage.setItem('notifications', JSON.stringify(storedNotifications));
   };
+
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
     <div className="notifications p-4">
-      <h2 style={{  color:savedTheme === 'light'?'#232629':'#fbfbfb' }} className="font-bold text-2xl mb-2">Notifications</h2>
+      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-2xl mb-2">Notifications</h2>
       {notifications.length > 0 ? (
         <>
           {notifications.map((notification) => (
-            <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background:savedTheme === 'light'? '#fbfbfb':'#232629', color:savedTheme === 'light'?'#232629':'#fbfbfb' , borderRadius: '10px',border:savedTheme === 'light'?'1px solid #dddfe2':'1px solid #3b3f45' }}>
-            <p className="font-normal text-sm" key={notification.id}>
-            <strong style={{color:savedTheme === 'light'?'#7e9cbe':'#c2d0e0'}} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em >{notification.postText}</em>
-             </p>
-              <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
+            <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
+              <p className="font-normal text-sm" key={notification.id}>
+                <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
+              </p>
+              {notification.action === 'Sent a friend request' ? (
+                <>
+                 <div className="flex gap-2">
+                 <button onClick={() => handleAcceptFriend(notification)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Accept Friend</button>
+                 <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}> <CloseIcon /></button>
+                 </div>
+                </>
+              ) : (
+                <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
+              )}
             </div>
           ))}
-          <button  onClick={clearAllNotifications} style={{ marginTop: '10px', background: '#a0b6cf',color:'#26374a', borderRadius: '10px', padding: '10px' }}>Clear All Notifications</button>
+          <button onClick={clearAllNotifications} style={{ marginTop: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '10px' }}>Clear All Notifications</button>
         </>
       ) : (
-        <div className="flex flex-col  items-center justify-center mt-12">
-        <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-        <NotificationsOffIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
-        </div>
-          <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Notification yet</p>
+        <div className="flex flex-col items-center justify-center mt-12">
+          <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
+            <NotificationsOffIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+          </div>
+          <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', }} className="text-xl font-semibold mt-2">No Notification yet</p>
         </div>
       )}
     </div>
   );
 };
+
 
 
 
