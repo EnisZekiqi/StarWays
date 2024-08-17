@@ -39,7 +39,8 @@ const UserForm = ({ }) => {
     if (isLoading) return;
 
     const user = users.find((user) => user.nickname === nickname && user.password === password);
-
+    localStorage.setItem('user', JSON.stringify(user));
+    
     if (user) {
       setLoading(true);
       Cookies.set('isAuthenticated', 'true')

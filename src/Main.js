@@ -32,14 +32,16 @@ import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import { TbMessagesOff } from "react-icons/tb";
 const Main = () => {
 
   const [user, setUser] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [posts, setPosts] = useState([]);
     const [highlight, setHighlight] = useState('Not Highlighted');
-
+    const [showUserProfile,setShowUserProfile]=useState(null)
     const [notifications, setNotifications] = useState([]);
+    const [messages, setMessages] = useState([]);
     useEffect(() => {
       if (user) {
         const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
@@ -47,8 +49,22 @@ const Main = () => {
         setNotificationsCount(userNotifications.length);
       }
     }, [user]);
-const [notificationsCount, setNotificationsCount] = useState(0);
 
+    useEffect(() => {
+      // Retrieve messages from localStorage
+      if (user) {
+
+      const storedMessages = JSON.parse(localStorage.getItem('messages')) || [];
+      const userMessages = storedMessages[user.id] || [];
+      setMessages(storedMessages);
+      setMessagesCount(storedMessages.length);
+    }
+    }, [user]);
+
+   
+
+const [notificationsCount, setNotificationsCount] = useState(0);
+const [messagesCount,setMessagesCount]=useState(0)
 
     
     const toggleHighlight = (highlight) => {
@@ -92,6 +108,15 @@ const handleTabChange = (tab) => {
     // Set the notifications and clear the count
     setNotifications(userNotifications);
     setNotificationsCount(0); // Clear the notification count once the tab is clicked
+  }
+  if (tab === 'messages' && user) {
+    // Fetch notifications from localStorage when the notification tab is clicked
+    const storedMessages = JSON.parse(localStorage.getItem('messages')) || {};
+    const userMessages = storedMessages[user.id] || [];
+    
+    // Set the notifications and clear the count
+    setMessages(userMessages);
+    setMessagesCount(0); // Clear the notification count once the tab is clicked
   }
   setActiveTab(tab);
   setEditProfile(false)
@@ -189,6 +214,7 @@ useEffect(() => {
          className={getItemClass('messages')}>
             <QuestionAnswerIcon/>
             <p>Messages</p>
+            {messages.length > 0 && <span  style={{borderRadius:'50%',background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}} className=" px-2 font-bold notification-badge"> {messagesCount > 0 && `${messagesCount}`}</span>}
         </div>
         <div onClick={() => handleTabChange('notification')} id="notifi"
          className={getItemClass('notification')}>
@@ -256,7 +282,7 @@ useEffect(() => {
         {activeTab === 'home' && <div>Home Content</div>}
         {activeTab === 'search' && <Search />}
         {activeTab === 'explore' && <div>Explore Content</div>}
-        {activeTab === 'messages' && <div>Messages Content</div>}
+        {activeTab === 'messages' && <div><SendMessage user={showUserProfile}/></div>}
         {activeTab === 'notification' && <Notifications user={user} />}
         {activeTab === 'create' &&   <Create highlight={highlight} toggleHighlight={toggleHighlight} user={user} handleAddPost={handleAddPost} />}
       </div>
@@ -837,9 +863,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     return userFriends.length;
   };
 
-  const handleSendMessage = () => {
-    // Your message sending logic here
-  };
+
   
 
 
@@ -857,124 +881,315 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     p: 4,
   };
 
-  // Handle toggling bookmark (save)
- 
-
+  const [showMessage,setShowMessage]=useState(false)
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [message, setMessage] = useState('');
+  const [recipientUser, setRecipientUser] = useState(null);
+  const handleSendMessage = ({ recipientUser }) => {
+    // Retrieve the logged-in user from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+  
+    if (!currentUser || !currentUser.id) {
+      console.error('Current user is not defined');
+      return;
+    }
+  
+    if (!message.trim()) {
+      console.error('Message cannot be empty');
+      return;
+    }
+  
+    const newMessage = {
+      senderId: currentUser.id,
+      senderNickname: currentUser.nickname,
+      recipientId: recipientUser.id,
+      recipientNickname: recipientUser.nickname,
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+  
+    // Save the message (could be stored in localStorage, sent to a backend, etc.)
+    const messages = JSON.parse(localStorage.getItem('messages')) || [];
+    messages.push(newMessage);
+    localStorage.setItem('messages', JSON.stringify(messages));
+  
+    setMessage('');  // Clear the message input
+    setModalOpen(false);  // Close the modal
+    console.log('Message sent to', recipientUser.nickname);
+    
+  };
   return (
-    <div className="flex justify-between w-full mt-12">
-       <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
-       <ArrowBackIosNewIcon />
-      </button>
-      <div className="flex gap-6 w-full ">
-        <div className="h-fit">
-        <Avatar sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
-        </div>
-        <div className="flex flex-col gap-3 w-full">
-          <div className="flex gap-3">
-            <h1 className="font-medium text-xl">{user.nickname}</h1>
-          </div>
-          <div className="flex items-center gap-6">
-            <p>{posts.length} <b className="font-semibold ml-1">posts</b> </p>
-            <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
-          </div>
-          <p>{user.description}</p>
-          <div className="flex gap-4 mt-4">
-          {friendStatus === 'Add Friend' && (
-              <button  style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
-                Add Friend
-              </button>
-            )}
-            {friendStatus === 'Request Sent' && (
-              <button  style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} className=" text-white px-4 py-2 rounded" disabled>
-                Request Sent
-              </button>
-            )}
-            {friendStatus === 'Friends' && (
-              <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} className=" px-4 py-2 rounded" >
-                Friends
-              </button>
-            )}
-            <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} onClick={handleSendMessage} className=" px-4 py-2 rounded">Send Message</button>
-          </div> {/* Displaying 'description' */}
-          <div className="flex justify-center items-center w-full  gap-4"
-          style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
-          >
-          <div className="flex justify-center mt-6 gap-6">
-            <div className="flex  gap-2 items-center justify-center">
-          <DynamicFeedIcon/>
-          <p>Posts</p>
-          </div>
-          <div className="flex gap-2">
-            <BookmarkIcon/>
-            <p>Saved</p>
-          </div>
-          </div>
-          </div>
-          {posts.length > 0 ? (
-        posts.map((post) => (
-          <div
-            key={post.id}
-            className="post p-4 mb-4 flex justify-between w-full"
-            style={{
-              backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-              borderRadius: '5px',
-              border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-            }}
-          >
-            <div className="flex flex-col">
-              {post.highlight === 'Highlighted' && (
-                <div
-                  className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
-                  style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
-                >
-                  Highlighted
-                </div>
-              )}
-              <p><strong>Feeling:</strong> {post.feeling}</p>
-              <p>{post.text}</p>
-            </div>
-            <div className="flex items-center">
-            <Checkbox
-                    icon={<FavoriteBorder />}
-                    checkedIcon={<Favorite />}
-                    checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
-                    onChange={() => handleToggleBookmark(post.id)}
-                  />
-            </div>
-          </div>
-        ))
-      ) : (
-        <div className="flex flex-col  items-center justify-center mt-12">
-        <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-        <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
-        </div>
-          <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
-        </div>
-      )}
-        </div>
-      </div>
-      {ModalConfirmation && 
-      <div>
-        <Modal
-       open={ModalConfirmation}
-       onClose={handleCloseConfirmation}
-      >
+    <div>
+      {showMessage ? 
+    <SendMessage user={selectedUser} posts={posts} friendCount={friendCount}  goBackMessage={() => setShowMessage(false)}/>
+    :(
+      <div className="flex justify-between w-full mt-12">
+      <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
+      <ArrowBackIosNewIcon />
+     </button>
+     <div className="flex gap-6 w-full ">
+       <div className="h-fit">
+       <Avatar sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
+       </div>
+       <div className="flex flex-col gap-3 w-full">
+         <div className="flex gap-3">
+           <h1 className="font-medium text-xl">{user.nickname}</h1>
+         </div>
+         <div className="flex items-center gap-6">
+           <p>{posts.length} <b className="font-semibold ml-1">posts</b> </p>
+           <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
+         </div>
+         <p>{user.description}</p>
+         <div className="flex gap-4 mt-4">
+         {friendStatus === 'Add Friend' && (
+             <button  style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
+               Add Friend
+             </button>
+           )}
+           {friendStatus === 'Request Sent' && (
+             <button  style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} className=" text-white px-4 py-2 rounded" disabled>
+               Request Sent
+             </button>
+           )}
+           {friendStatus === 'Friends' && (
+             <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} className=" px-4 py-2 rounded" >
+               Friends
+             </button>
+           )}
+           <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} onClick={() => setModalOpen(true)} className=" px-4 py-2 rounded">Send Message</button>
+         </div> {/* Displaying 'description' */}
+         <div className="flex justify-center items-center w-full  gap-4"
+         style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
+         >
+         <div className="flex justify-center mt-6 gap-6">
+           <div className="flex  gap-2 items-center justify-center">
+         <DynamicFeedIcon/>
+         <p>Posts</p>
+         </div>
+         <div className="flex gap-2">
+           <BookmarkIcon/>
+           <p>Saved</p>
+         </div>
+         </div>
+         </div>
+         {posts.length > 0 ? (
+       posts.map((post) => (
+         <div
+           key={post.id}
+           className="post p-4 mb-4 flex justify-between w-full"
+           style={{
+             backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+             borderRadius: '5px',
+             border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+           }}
+         >
+           <div className="flex flex-col">
+             {post.highlight === 'Highlighted' && (
+               <div
+                 className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+                 style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+               >
+                 Highlighted
+               </div>
+             )}
+             <p><strong>Feeling:</strong> {post.feeling}</p>
+             <p>{post.text}</p>
+           </div>
+           <div className="flex items-center">
+           <Checkbox
+                   icon={<FavoriteBorder />}
+                   checkedIcon={<Favorite />}
+                   checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
+                   onChange={() => handleToggleBookmark(post.id)}
+                 />
+           </div>
+         </div>
+       ))
+     ) : (
+       <div className="flex flex-col  items-center justify-center mt-12">
+       <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+       <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+       </div>
+         <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+       </div>
+     )}
+       </div>
+     </div>
+     {ModalConfirmation && 
+     <div>
+       <Modal
+      open={ModalConfirmation}
+      onClose={handleCloseConfirmation}
+     >
+     <Box sx={style}>
+       <div className="flex flex-col">
+         <p>Are you sure you want to remove <b>{user.nickname}</b> from friends</p>
+         <div className="flex gap-3 justify-end mt-4">
+         <button style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleRemoveFriend}>Confirm</button>
+         <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} onClick={handleCloseConfirmation}>Cancle</button>
+         </div>
+       </div>
+     </Box>  
+     </Modal>
+     </div>
+     }
+     {isModalOpen && (
+     <div>
+       <Modal
+      open={isModalOpen}
+      onClose={() => setModalOpen(false)}
+    >
       <Box sx={style}>
-        <div className="flex flex-col">
-          <p>Are you sure you want to remove <b>{user.nickname}</b> from friends</p>
-          <div className="flex gap-3 justify-end mt-4">
-          <button style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleRemoveFriend}>Confirm</button>
-          <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} onClick={handleCloseConfirmation}>Cancle</button>
-          </div>
-        </div>
+       
+      <SendMessageModal recipientUser={user} onClose={() => setModalOpen(false)} />
+        
       </Box>  
-      </Modal>
-      </div>
-      }
+    </Modal>
+     </div>
+       
+      )}
+   </div>
+    )
+    }
+     
     </div>
   );
 };
 
+const SendMessageModal = ({ recipientUser, onClose }) => {
+  const [message, setMessage] = useState('');
+
+  const handleSendMessage = () => {
+    // Retrieve the logged-in user from localStorage
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+
+    if (!currentUser || !currentUser.id) {
+      console.error('Current user is not defined');
+      return;
+    }
+
+    if (!recipientUser || !recipientUser.id) {
+      console.error('Recipient user is not defined');
+      return;
+    }
+
+    if (!message.trim()) {
+      console.error('Message cannot be empty');
+      return;
+    }
+
+    const newMessage = {
+      senderId: currentUser.id,
+      senderNickname: currentUser.nickname,
+      recipientId: recipientUser.id,
+      recipientNickname: recipientUser.nickname,
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Save the message in localStorage or send to the backend
+    const messages = JSON.parse(localStorage.getItem('messages')) || [];
+    messages.push(newMessage);
+    localStorage.setItem('messages', JSON.stringify(messages));
+
+    setMessage('');  // Clear the message input
+    onClose();  // Close the modal
+    console.log('Message sent to', recipientUser.nickname);
+  };
+
+  return (
+    <div>
+      <h3>Send a message to {recipientUser.nickname}</h3>
+      <textarea value={message} onChange={(e) => setMessage(e.target.value)} />
+      <button onClick={handleSendMessage}>Send</button>
+      <button onClick={onClose}>Cancel</button>
+    </div>
+  );
+};
+
+
+
+const SendMessage = (user)=>{
+  const savedTheme = localStorage.getItem('color') || 'light';
+   const [messages, setMessages] = useState([]);
+
+   const updateMessagesInLocalStorage = (messages) => {
+    localStorage.setItem('messages', JSON.stringify(messages));
+  };
+
+  useEffect(() => {
+    // Retrieve messages from localStorage
+    const storedMessages = JSON.parse(localStorage.getItem('messages')) || [];
+    setMessages(storedMessages);
+  }, []);
+
+  // Retrieve the logged-in user from localStorage
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+
+  if (!currentUser || !currentUser.id) {
+    console.error('Current user is not defined');
+    return <div>Error: No current user</div>;
+  }
+
+  const handleMarkAsRead = (messageToRemove) => {
+    // Remove the specific message only if it is related to the current user
+    const updatedMessages = messages.filter(
+      (msg) =>
+        (msg.senderId !== currentUser.id && msg.recipientId !== currentUser.id) ||
+        msg.timestamp !== messageToRemove.timestamp
+    );
+    setMessages(updatedMessages);
+    updateMessagesInLocalStorage(updatedMessages);
+  };
+
+  const handleClearAllMessages = () => {
+    // Clear all messages related to the current user
+    const updatedMessages = messages.filter(
+      (msg) => msg.senderId !== currentUser.id && msg.recipientId !== currentUser.id
+    );
+    setMessages(updatedMessages);
+    updateMessagesInLocalStorage(updatedMessages);
+  };
+  // Filter messages that are either sent by or received by the current user
+  const userMessages = messages.filter(
+    (message) =>
+      message.senderId === currentUser.id || message.recipientId === currentUser.id
+  );
+  return (
+    <div className="messages p-4">
+      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-2xl mb-2">Messages</h2>
+    {userMessages.length > 0 ? (
+     <div>
+      {userMessages.map((msg, index) => (
+       <div className="">
+         <div className="flex items-center justify-between p-2 mb-2" key={index} style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
+         <div className="">
+         <p>
+            <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }}>{msg.senderNickname}</strong> to{' '}
+            <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }}>{msg.recipientNickname}</strong>: {msg.content}
+          </p>
+          <span><strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="mr-4">Time:</strong>{new Date(msg.timestamp).toLocaleString()}</span>
+          
+         </div>
+         <button style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }} onClick={() => handleMarkAsRead(msg)}>Mark as Read</button>  
+        </div>
+       </div>
+      ))}
+ <button style={{ marginTop: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '10px' }} className="pr-2" onClick={handleClearAllMessages}>Clear All Messages</button>
+     </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center mt-12">
+          <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
+            <TbMessagesOff  style={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+          </div>
+          <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', }} className="text-xl font-semibold mt-2">No Messages yet</p>
+        </div>
+    )}
+   
+  </div>
+  );
+}
 
 const Notifications = ({ user }) => {
   const [notifications, setNotifications] = useState([]);
