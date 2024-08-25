@@ -33,6 +33,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { TbMessagesOff } from "react-icons/tb";
+import LockIcon from '@mui/icons-material/Lock';
 const Main = () => {
 
   const [user, setUser] = useState(null);
@@ -281,7 +282,7 @@ useEffect(() => {
       )}
         {activeTab === 'home' && <div>Home Content</div>}
         {activeTab === 'search' && <Search />}
-        {activeTab === 'explore' && <div>Explore Content</div>}
+        {activeTab === 'explore' && <ExploreComponent/>}
         {activeTab === 'messages' && <div><SendMessage user={showUserProfile}/></div>}
         {activeTab === 'notification' && <Notifications user={user} />}
         {activeTab === 'create' &&   <Create highlight={highlight} toggleHighlight={toggleHighlight} user={user} handleAddPost={handleAddPost} />}
@@ -289,6 +290,58 @@ useEffect(() => {
       
     </div>
   );
+}
+
+
+const ExploreComponent =()=>{
+  const [allUsers, setAllUsers] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [publicPosts, setPublicPosts] = useState([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchUsersAndPosts = async () => {
+      try {
+        // Fetch users from API or localStorage
+        const responseUsers = await axios.get('http://localhost:5000/users');
+        const usersData = responseUsers.data;
+        setAllUsers(usersData);
+
+        // Fetch posts from API or localStorage
+        const responsePosts = await axios.get('http://localhost:5000/posts');
+        const postsData = responsePosts.data;
+        setAllPosts(postsData);
+        
+        // Process posts
+        const publicUsers = usersData.filter(user => !user.isPrivate);
+        const publicPosts = postsData.filter(post =>
+          publicUsers.some(user => user.id === post.userId)
+        );
+        setPublicPosts(publicPosts);
+
+      } catch (err) {
+        setError('Failed to fetch data');
+      }
+    };
+
+    fetchUsersAndPosts();
+  }, []);
+  return(
+    <div>
+        <h1>Explore</h1>
+      {error && <p>{error}</p>}
+      {publicPosts.length > 0 ? (
+        publicPosts.map(post => (
+          <div key={post.id} className="post">
+            <h2>{post.feeling}</h2>
+            <p>{post.text}</p>
+          </div>
+        ))
+      ) : (
+        <p>No posts available.</p>
+      )}
+    </div>
+  )
 }
  
 const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
@@ -311,6 +364,64 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
     setSelected(null)
     setOpen(false)
   }
+
+  const [friendCount, setFriendCount] = useState(0);
+ 
+
+
+  useEffect(() => {
+    if (user && user.id) {
+      // Only fetch the friend count if the user object and user.id are available
+      setFriendCount(getFriendCount(user.id));
+    }
+  }, [user]);
+  
+  const getFriendCount = (userId) => {
+    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+    const userFriends = storedFriends[userId] || [];
+    return userFriends.length;
+  };
+
+
+  
+  const [friendsChecker, setFriendsChecker] = useState(false);
+  const [friendsData, setFriendsData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch users and filter friends' data when the modal is open
+  useEffect(() => {
+    const fetchUsersAndFriends = async () => {
+      setLoading(true);
+      try {
+        // Fetch all users from the backend
+        const response = await axios.get('http://localhost:5000/users');
+        const allUsers = response.data;
+
+        // Fetch stored friends from localStorage
+        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+        const user = JSON.parse(localStorage.getItem('user'));
+        const userFriends = storedFriends[user.id] || [];
+
+        // Filter friends' details based on their IDs
+        const friendsDetails = allUsers.filter((user) =>
+          userFriends.includes(user.id)
+        );
+
+        // Set the filtered friends data
+        setFriendsData(friendsDetails);
+      } catch (err) {
+        setError('Failed to fetch users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (friendsChecker) {
+      fetchUsersAndFriends();
+    }
+  }, [friendsChecker]);
+
 
   const handleRemovePost = (postId, userId) => {
     const updatedPosts = posts.filter(post => post.id !== postId || post.userId !== userId);
@@ -350,6 +461,20 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   const savedTheme = localStorage.getItem('color') || 'light';
 
 
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+   border: savedTheme ==='light'?'1px solid #3b3f45':'1 px solid #dddfe2',
+   borderRadius:'10px',
+   overflowY:'auto',
+    p: 4,
+  };
+
   return(
    <div style={{ color:savedTheme==='light'?'#232629':'#fbfbfb',marginTop:30}}>
     <div className="flex gap-6 items-center">
@@ -364,10 +489,10 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
     }}
     >Edit Profile</button>
    </div>
-    <div className="flex items-center gap-6">
-    <p>{userPosts.length} Posts</p>
-    <p>friends</p>
-    </div> 
+   <div className="flex items-center gap-6">
+           <p>{userPosts.length} <b className="font-semibold ml-1">posts</b> </p>
+           <p className="cursor-pointer" onClick={()=>setFriendsChecker(true)}>{friendCount} <b className="font-semibold ml-1">friends</b></p>
+         </div>
     <p>{user.description}</p> 
    </div>
     </div>
@@ -442,6 +567,46 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
         }
         {selected && 
         <ModalPost open={open} post={selected}   handleSaveChanges={handleSaveChanges}  handleClosePost={handleClosePost}/>
+        }
+        {friendsChecker && 
+        <div>
+            <Modal
+              open={friendsChecker}
+              onClose={()=>setFriendsChecker(false)}
+            >
+              <Box sx={style}>
+            <h2 className="mb-6 font-bold text-2xl">Friends List</h2>
+            {loading ? (
+              <p>Loading...</p>
+            ) : error ? (
+              <p>{error}</p>
+            ) : friendsData.length > 0 ? (
+              friendsData.map((friend) => (
+                <div
+                  key={friend.id}
+                  className="flex gap-4 mb-4"
+                  style={{
+                    borderBottom: '1px solid #ccc',
+                    paddingBottom: '8px',
+                  }}
+                >
+                  <Avatar
+                    sx={{ width: '50px', height: '50px' }}
+                    alt={friend.nickname}
+                    src={friend.avatar || ''}
+                  />
+                  <div>
+                    <h3 className="font-semibold">{friend.nickname}</h3>
+                   {friend.description ? <p className="font-light text-sm">{friend.description}</p> :  <p className="font-light">No description yet</p>}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p>No friends found.</p>
+            )}
+          </Box>
+            </Modal>
+        </div>
         }
    </div>
   )
@@ -581,8 +746,8 @@ const Search = () => {
                   <div className="flex gap-3">
                   <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px' }} />
                   <div className="flex flex-col gap-2">
-                    <p>{user.nickname}</p> {/* Displaying 'nickname' */}
-                    <p>{user.description}</p> {/* Displaying 'description' */}
+                    <p className="font-semibold">{user.nickname}</p> {/* Displaying 'nickname' */}
+                    <p className="font-light text-sm">{user.description}</p> {/* Displaying 'description' */}
                      
                   </div>
                   </div>
@@ -613,6 +778,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   // Dummy data for posts, adjust as needed
   const [favorites, setFavorites] = useState({});
   const [bookmarks, setBookmarks] = useState({});
+  const [isPrivate,setIsPrivate]=useState(false)
 
   useEffect(() => {
     const storedBookmarks = JSON.parse(localStorage.getItem('bookmarks')) || {};
@@ -626,6 +792,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       console.error('Logged-in user data is invalid or missing');
       return;
     }
+
+    
   
     const currentUserId = storedUser.id;
     const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
@@ -635,6 +803,15 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   useEffect(() => {
     const storedFavorites = JSON.parse(localStorage.getItem('favorites')) || {};
     setFavorites(storedFavorites);
+  }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser); // Define parsedUser here
+     
+      setIsPrivate(parsedUser.isPrivate || false); // Access isPrivate from parsedUser
+    }
   }, []);
 
   const handleToggleFavorite = (postId) => {
@@ -973,47 +1150,58 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
          </div>
          </div>
          </div>
-         {posts.length > 0 ? (
-       posts.map((post) => (
-         <div
-           key={post.id}
-           className="post p-4 mb-4 flex justify-between w-full"
-           style={{
-             backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-             borderRadius: '5px',
-             border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-           }}
-         >
-           <div className="flex flex-col">
-             {post.highlight === 'Highlighted' && (
-               <div
-                 className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
-                 style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
-               >
-                 Highlighted
-               </div>
-             )}
-             <p><strong>Feeling:</strong> {post.feeling}</p>
-             <p>{post.text}</p>
-           </div>
-           <div className="flex items-center">
-           <Checkbox
-                   icon={<FavoriteBorder />}
-                   checkedIcon={<Favorite />}
-                   checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
-                   onChange={() => handleToggleBookmark(post.id)}
-                 />
-           </div>
-         </div>
-       ))
-     ) : (
-       <div className="flex flex-col  items-center justify-center mt-12">
-       <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-       <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
-       </div>
-         <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
-       </div>
-     )}
+         {user.isPrivate && friendStatus !== 'Friends' ? (
+  // If the user is private and the viewer is not a friend, show a message or empty state
+  <div className="flex flex-col items-center justify-center mt-12">
+    <div style={{borderRadius:"100%",border:savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45'}} className="camera-wrapper">
+      <LockIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+    </div>
+    <p style={{color:savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-xl font-semibold mt-2">This user's posts are private</p>
+  </div>
+) : (
+  posts.length > 0 ? (
+    posts.map((post) => (
+      <div
+        key={post.id}
+        className="post p-4 mb-4 flex justify-between w-full"
+        style={{
+          backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+          borderRadius: '5px',
+          border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+        }}
+      >
+        <div className="flex flex-col">
+          {post.highlight === 'Highlighted' && (
+            <div
+              className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+              style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
+            >
+              Highlighted
+            </div>
+          )}
+          <p><strong>Feeling:</strong> {post.feeling}</p>
+          <p>{post.text}</p>
+        </div>
+        <div className="flex items-center">
+          <Checkbox
+            icon={<FavoriteBorder />}
+            checkedIcon={<Favorite />}
+            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
+            onChange={() => handleToggleBookmark(post.id)}
+          />
+        </div>
+      </div>
+    ))
+  ) : (
+    <div className="flex flex-col items-center justify-center mt-12">
+      <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+        <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+      </div>
+      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+    </div>
+  )
+)}
+
        </div>
      </div>
      {ModalConfirmation && 
@@ -1026,8 +1214,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
        <div className="flex flex-col">
          <p>Are you sure you want to remove <b>{user.nickname}</b> from friends</p>
          <div className="flex gap-3 justify-end mt-4">
-         <button style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleRemoveFriend}>Confirm</button>
-         <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} onClick={handleCloseConfirmation}>Cancle</button>
+         <button className="p-1" style={{color: '#26374a',backgroundColor:'#a0b6cf',borderRadius:'10px'}}  onClick={handleRemoveFriend}>Confirm</button>
+         <button className="p-1.5" style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629' ,borderRadius:'10px'}} onClick={handleCloseConfirmation}>Cancle</button>
          </div>
        </div>
      </Box>  
@@ -1098,12 +1286,19 @@ const SendMessageModal = ({ recipientUser, onClose }) => {
     console.log('Message sent to', recipientUser.nickname);
   };
 
+  const savedTheme = localStorage.getItem('color') || 'light';
+
   return (
     <div>
-      <h3>Send a message to {recipientUser.nickname}</h3>
-      <textarea value={message} onChange={(e) => setMessage(e.target.value)} />
-      <button onClick={handleSendMessage}>Send</button>
-      <button onClick={onClose}>Cancel</button>
+      <h3>Send a message to <b>{recipientUser.nickname}</b></h3>
+     <div className="flex flex-col gap-4 mt-2">
+     <textarea rows='2' style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '2px solid #dddfe2' : '2px solid #3b3f45' }}
+       value={message} onChange={(e) => setMessage(e.target.value)} />
+      <div className="flex gap-4 justify-end">
+      <button className="p-1" style={{color: '#26374a',backgroundColor:'#a0b6cf',borderRadius:'10px'}} onClick={handleSendMessage}>Send</button>
+      <button className="p-1.5" style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629' ,borderRadius:'10px'}} onClick={onClose}>Cancel</button>
+      </div>
+     </div>
     </div>
   );
 };
@@ -1306,15 +1501,18 @@ const Notifications = ({ user }) => {
 const EditProfile = ({handleGoBack})=>{
   const [user, setUser] = useState(null);
   const [image, setImage] = useState(null); //// avatar image 
-  
+  const [isPrivate, setIsPrivate] = useState(false);///account privacy
   const [password, setPassword] = useState('');
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
-
+      const parsedUser = JSON.parse(storedUser); // Define parsedUser here
+      setUser(parsedUser);
+      setIsPrivate(parsedUser.isPrivate || false); // Access isPrivate from parsedUser
     }
   }, []);
+
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     const reader = new FileReader();
@@ -1342,11 +1540,24 @@ const EditProfile = ({handleGoBack})=>{
     setPassword(e.target.value);
   };
 
+  const [savedChangesMessage,setSavedChangesMessage]=useState(false)
+
   const handleSaveChanges = async () => {
     const updatedUser = { ...user, password };
     localStorage.setItem('user', JSON.stringify(updatedUser));
     await axios.put(`http://localhost:5000/users/${user.id}`, updatedUser);
+    setSavedChangesMessage(true)
+    setTimeout(() => {
+      setSavedChangesMessage(false)
+      handleGoBack()
+    }, 3000);
   };
+
+  const handleTogglePrivacy = () => {
+    setIsPrivate(!isPrivate);
+    setUser({ ...user, isPrivate: !isPrivate });
+  };
+
   if (!user) {
     return <div>Loading user data...</div>;
   }
@@ -1429,11 +1640,44 @@ const EditProfile = ({handleGoBack})=>{
               className="p-2"
               style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }}
             />
+            <div className="flex items-center gap-2 mt-4">
+          <p className="font-light">Account Privacy</p>
+          <label className="switch">
+            <input type="checkbox" checked={isPrivate}  style={{
+    accentColor: isPrivate ? "#a0b6cf" : "",transform: "scale(1.2)", // Scale the checkbox to make it larger
+    width: '15px',  // Optional width for alignment purposes
+    height: '15px', // Use accentColor to apply color when checked
+  }} onChange={handleTogglePrivacy} />
+            <span className="slider round"></span>
+          </label>
+          <span>{isPrivate ? 'Private' : 'Public'}</span>
+        </div>
           <button onClick={handleSaveChanges} className="mt-2 p-2 font-semibold" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color:savedTheme === 'light' ? '#26374a' : '#26374a' , borderRadius: '5px' }}>
             Save Changes
           </button>
         </div>
       </div>
+      {savedChangesMessage && 
+      <div>
+        <Snackbar
+        open={savedChangesMessage}
+        sx={{backgroundColor:'#a0cfa0',color:'#264a26', borderRadius:15}}
+        autoHideDuration={6000}
+        onClose={() => setSavedChangesMessage(false)}
+       
+      >
+         <SnackbarContent
+            sx={{
+              backgroundColor: '#a0cfa0',
+              color: '#264a26',
+              fontWeight:500,
+             
+            }}
+            message="Changes are made successfully"
+          />
+      </Snackbar>
+      </div>
+      }
     </div>
   );
 }

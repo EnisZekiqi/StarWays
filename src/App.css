@@ -106,3 +106,7 @@ transition: all 0.3s ease;
 .usersSearch:hover{
 border:1px solid #a0b6cf ;
 }
+
+.switch{
+  color:#a0b6cf
+}
