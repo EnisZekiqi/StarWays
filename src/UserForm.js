@@ -18,6 +18,16 @@ const UserForm = ({ }) => {
   const [userError,setUserError]=useState(false) //// same username attempt
   const [loading, setLoading] = useState(false);
   const [isVisible,setIsVisible]=useState(false)
+
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+  
+    window.addEventListener('resize', handleResize);
+  
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const navigate =useNavigate()
   
 
@@ -30,32 +40,35 @@ const UserForm = ({ }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
+  
     if (nickname.trim() === '' || password.trim() === '') {
       setError('Fill out the empty fields');
       return;
     }
-
+  
     if (isLoading) return;
-
+  
     const user = users.find((user) => user.nickname === nickname && user.password === password);
     localStorage.setItem('user', JSON.stringify(user));
     
     if (user) {
       setLoading(true);
-      Cookies.set('isAuthenticated', 'true')
+      Cookies.set('isAuthenticated', 'true');
       localStorage.setItem('user', JSON.stringify(user));
       setTimeout(() => {
         setLoading(false);
-        navigate('/main');
+        if (viewportWidth >= 1030) {
+          navigate('/mainResponsive');
+        } else {
+          navigate('/main');
+        }
       }, 2000); // Simulate loading for 2 seconds
     } else {
       setError('Invalid username or password');
       setOpen(true);
     }
-
   };
-
+  
 
 const savedTheme = localStorage.getItem('color') || 'light';
 

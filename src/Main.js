@@ -293,57 +293,191 @@ useEffect(() => {
 }
 
 
-const ExploreComponent =()=>{
-  const [allUsers, setAllUsers] = useState([]);
+const ExploreComponent = () => {
   const [allPosts, setAllPosts] = useState([]);
-  const [publicPosts, setPublicPosts] = useState([]);
-  const [error, setError] = useState('');
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchUsersAndPosts = async () => {
+    // Fetch posts from localStorage
+    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    setAllPosts(storedPosts);
+
+    // Fetch users from backend
+    const fetchUsers = async () => {
+      setLoading(true);
       try {
-        // Fetch users from API or localStorage
-        const responseUsers = await axios.get('http://localhost:5000/users');
-        const usersData = responseUsers.data;
-        setAllUsers(usersData);
-
-        // Fetch posts from API or localStorage
-        const responsePosts = await axios.get('http://localhost:5000/posts');
-        const postsData = responsePosts.data;
-        setAllPosts(postsData);
-        
-        // Process posts
-        const publicUsers = usersData.filter(user => !user.isPrivate);
-        const publicPosts = postsData.filter(post =>
-          publicUsers.some(user => user.id === post.userId)
-        );
-        setPublicPosts(publicPosts);
-
+        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
+        setAllUsers(response.data);
       } catch (err) {
-        setError('Failed to fetch data');
+        setError('Failed to fetch users');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchUsersAndPosts();
+    fetchUsers();
   }, []);
-  return(
-    <div>
-        <h1>Explore</h1>
+
+  const getUserById = (userId) => {
+    return allUsers.find((user) => user.id === userId) || { nickname: 'Unknown User'};
+  };
+
+  const [bookmarks, setBookmarks] = useState({});
+  const [likedPosts, setLikedPosts] = useState({});
+
+  const handleToggleBookmark = (postId) => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || typeof storedUser !== 'object') {
+      console.error('Logged-in user data is invalid or missing');
+      return;
+    }
+
+    const currentUserNickname = storedUser.nickname;
+    const currentUserId = storedUser.id;
+
+    const post = allPosts.find(post => post.id === postId);
+    if (!post) return;
+
+    const postOwnerId = post.userId;
+
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[postOwnerId] || [];
+
+    setBookmarks(prevBookmarks => {
+      const updatedBookmarks = { ...prevBookmarks };
+      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
+
+      if (isBookmarked) {
+        // Remove from bookmarks
+        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
+      } else {
+        // Add to bookmarks
+        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
+
+        // Add notification
+        userNotifications.push({
+          senderNickname: currentUserNickname,
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          action: 'liked',
+          action2: 'your post:',
+          id: Date.now(),
+        });
+      }
+
+      // Update notifications in localStorage
+      storedNotifications[postOwnerId] = userNotifications;
+      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+
+      // Update bookmarks in localStorage
+      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+
+      // Handle liking the post and updating likedPosts
+      setLikedPosts(prevLikedPosts => {
+        const updatedLikedPosts = { ...prevLikedPosts };
+
+        if (updatedLikedPosts[postId]) {
+          delete updatedLikedPosts[postId]; // Unliking the post
+        } else {
+          updatedLikedPosts[postId] = true; // Liking the post
+        }
+
+        // Update liked posts in localStorage
+        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+        savedLiked[currentUserId] = updatedLikedPosts;
+        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
+
+        // Update the state
+        return updatedLikedPosts;
+      });
+
+      return updatedBookmarks;
+    });
+  };
+
+  // Load liked posts from localStorage when component mounts
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setLikedPosts(savedLikedPosts[currentUserId] || {});
+    }
+  }, []);
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  return (
+    <div style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>
+      <h1 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-3xl ">Explore</h1>
+      {loading && <p>Loading users...</p>}
       {error && <p>{error}</p>}
-      {publicPosts.length > 0 ? (
-        publicPosts.map(post => (
-          <div key={post.id} className="post">
-            <h2>{post.feeling}</h2>
-            <p>{post.text}</p>
-          </div>
-        ))
+      <div className="empty3 -mt-3"></div>
+      {!loading && !error && allPosts.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+          {allPosts.map((post) => {
+            const user = getUserById(post.userId);
+
+            return (
+              <div
+                key={post.id}
+                className="post p-4 flex flex-col"
+                style={{
+                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                  borderRadius: '5px',
+                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                }}
+              >
+                
+                <div className="flex justify-between gap-2 items-center -ml-2">
+                  <div className="flex gap-2 items-center -mt-2 ml-1">
+                  {user.avatar && (
+                    <Avatar
+                      src={user.avatar}
+                      alt={`${user.nickname}'s avatar`}
+                      className="w-8 h-8 rounded-full"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  )}
+                  <p style={{ color:savedTheme ==='light' ? '#26374a':'a0b6cf' }}>
+                    <b>{user.nickname}</b>
+                  </p>
+                  </div>
+                </div>
+
+                
+                <div className="flex flex-col mt-4">
+                  <p ><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                  <p>{post.text}</p>
+                </div>
+               <div className="mt-4">
+               <Checkbox
+            icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
+            checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
+            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
+            onChange={() => handleToggleBookmark(post.id)}
+          />
+               </div>
+              </div>
+            );
+          })}
+          <div className="empty"></div>
+        </div>
       ) : (
         <p>No posts available.</p>
       )}
     </div>
-  )
-}
- 
+  );
+};
+
+
+
+
+
+
+
+
 const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   const [user, setUser] = useState(null);
   const [password, setPassword] = useState('');
@@ -814,43 +948,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     }
   }, []);
 
-  const handleToggleFavorite = (postId) => {
-    const currentUserId = user.id;
-    const currentUserNickname = user.nickname; // Get the nickname of the user performing the action
-    const updatedFavorites = { ...favorites };
-  
-    if (!updatedFavorites[currentUserId]) {
-      updatedFavorites[currentUserId] = [];
-    }
-  
-    if (updatedFavorites[currentUserId].includes(postId)) {
-      updatedFavorites[currentUserId] = updatedFavorites[currentUserId].filter(id => id !== postId);
-    } else {
-      updatedFavorites[currentUserId].push(postId);
-  
-      const post = posts.find(post => post.id === postId);
-      const postOwnerId = post.userId;
-  
-      // Create a notification only if the post owner is not the current user
-      if (postOwnerId !== currentUserId) {
-        const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-        const userNotifications = storedNotifications[postOwnerId] || [];
-  
-        userNotifications.push({
-          senderNickname: currentUserNickname, // Use the nickname of the user performing the action
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          id: Date.now(),
-        });
-  
-        storedNotifications[postOwnerId] = userNotifications;
-        localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-      }
-    }
-  
-    setFavorites(updatedFavorites);
-    localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-  };
+ 
   
 
   const handleToggleBookmark = (postId) => {
@@ -1184,8 +1282,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
         </div>
         <div className="flex items-center">
           <Checkbox
-            icon={<FavoriteBorder />}
-            checkedIcon={<Favorite />}
+           icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
+           checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
             checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
             onChange={() => handleToggleBookmark(post.id)}
           />
@@ -1498,41 +1596,39 @@ const Notifications = ({ user }) => {
 
 
 
-const EditProfile = ({handleGoBack})=>{
+const EditProfile = ({ handleGoBack }) => {
   const [user, setUser] = useState(null);
-  const [image, setImage] = useState(null); //// avatar image 
-  const [isPrivate, setIsPrivate] = useState(false);///account privacy
+  const [image, setImage] = useState(''); // Image URL
+  const [isPrivate, setIsPrivate] = useState(false); // Account privacy
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [savedChangesMessage, setSavedChangesMessage] = useState(false);
+  const [changesDescription,setChangesDescription]=useState(false)
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser); // Define parsedUser here
+      const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
-      setIsPrivate(parsedUser.isPrivate || false); // Access isPrivate from parsedUser
+      setImage(parsedUser.avatar || ''); // Set initial image state from user data
+      setIsPrivate(parsedUser.isPrivate || false);
     }
   }, []);
 
-  const handleImageChange = async (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-
-    reader.onloadend = async () => {
-      const updatedUser = { ...user, avatar: reader.result };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-
-      // Send updated user data to the server
-      await axios.put(`http://localhost:5000/users/${user.id}`, updatedUser);
-    };
-
-    if (file) {
-      reader.readAsDataURL(file);
-    }
+  const handleImageChange = (e) => {
+    const { value } = e.target;
+    setImage(value); // Update the image URL state
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'description' && value.length > 10) {
+      setChangesDescription(true);
+      setTimeout(() => {
+        setChangesDescription(false);
+      }, 3000);
+      return; // Prevent further updates if length exceeds 10
+    }
     setUser({ ...user, [name]: value });
   };
 
@@ -1540,17 +1636,31 @@ const EditProfile = ({handleGoBack})=>{
     setPassword(e.target.value);
   };
 
-  const [savedChangesMessage,setSavedChangesMessage]=useState(false)
-
   const handleSaveChanges = async () => {
-    const updatedUser = { ...user, password };
+    const updatedUser = { ...user };
+
+    if (password.trim() !== '') {
+      updatedUser.password = password;
+    }
+
+    if (image.trim() !== '') {
+      updatedUser.avatar = image; // Update avatar with the new image URL
+    }
+
+  
+
     localStorage.setItem('user', JSON.stringify(updatedUser));
-    await axios.put(`http://localhost:5000/users/${user.id}`, updatedUser);
-    setSavedChangesMessage(true)
-    setTimeout(() => {
-      setSavedChangesMessage(false)
-      handleGoBack()
-    }, 3000);
+
+    try {
+      await axios.put(`http://localhost:5000/users/${user.id}`, updatedUser);
+      setSavedChangesMessage(true);
+      setTimeout(() => {
+        setSavedChangesMessage(false);
+        handleGoBack();
+      }, 3000);
+    } catch (err) {
+      setError('Failed to save changes');
+    }
   };
 
   const handleTogglePrivacy = () => {
@@ -1561,6 +1671,7 @@ const EditProfile = ({handleGoBack})=>{
   if (!user) {
     return <div>Loading user data...</div>;
   }
+
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
@@ -1570,41 +1681,40 @@ const EditProfile = ({handleGoBack})=>{
       </div>
       <div className="flex flex-col w-3/4">
         <div className="flex justify-between items-center gap-4 p-4" style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#232629', borderRadius: '10px' }}>
-         <div className="flex gap-4">
-         <Avatar sx={{ width: '55px', height: '55px' }} alt={user.nickname} src={user.avatar || ''} />
-          <div className="flex flex-col">
-            <h1 className="font-medium text-lg"> {user.nickname}</h1>
-            <p className="font-light text-md" style={{ color: savedTheme === 'light' ? '#5e666e' : '#d6d9dc' }}>
-              {user.description}
-            </p>
+          <div className="flex gap-4">
+            <Avatar sx={{ width: '55px', height: '55px' }} alt={user.nickname} src={image} /> {/* Use the image state */}
+            <div className="flex flex-col">
+              <h1 className="font-medium text-lg">{user.nickname}</h1>
+              <p className="font-light text-md" style={{ color: savedTheme === 'light' ? '#5e666e' : '#d6d9dc' }}>
+                {user.description}
+              </p>
+            </div>
           </div>
-         </div>
           <input
-            accept="image/*"
-           
-            id="contained-button-file"
-            type="file"
-            onChange={handleImageChange}
+            type="text"
+            placeholder="Enter image URL"
+            value={image}
+            onChange={handleImageChange} // Update image URL
+            className="p-2"
+            style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
           />
-          <label htmlFor="contained-button-file">
-            <button className="px-2 font-medium" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color:savedTheme === 'light' ? '#26374a' : '#26374a' , borderRadius: '5px' }} component="span">Change Photo</button>
-          </label>
+          <button onClick={handleSaveChanges} className="px-2 font-medium" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color: savedTheme === 'light' ? '#26374a' : '#26374a', borderRadius: '5px' }}>
+            Change Photo
+          </button>
         </div>
         <div className="flex flex-col gap-2 mt-4">
-          <div className="flex flex-col gap-2">
 
-          <p className="font-light"> Description</p>
-            <input
-              type="text"
-              name="description"
-              value={user.description}
-              onChange={handleInputChange}
-              className="p-2"
-              style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }}
-            />
-          </div>
-          
-          <div className="flex flex-col gap-2">
+<p className="font-light"> Description</p>
+  <input
+    type="text"
+    name="description"
+    value={user.description}
+    onChange={handleInputChange}
+    className="p-2"
+    style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px', border:savedTheme ==='light'?'#dddfe2':'#3b3f45'}}
+  />
+</div>
+<div className="flex flex-col gap-2 mt-3">
           <p className="font-light">Gender</p>
            
           <select
@@ -1612,7 +1722,7 @@ const EditProfile = ({handleGoBack})=>{
               value={user.gender}
               onChange={handleInputChange}
               className="p-2"
-              style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }}
+              style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
             >
               <option value="Male">Male</option>
               <option value="Female">Female</option>
@@ -1620,67 +1730,71 @@ const EditProfile = ({handleGoBack})=>{
             </select>
             <p className="font-extralight text-xs">This won't be part of your public profile</p>
           </div>
-         
-          <p className="font-semibold mt-4 text-lg">Account settings</p>
-          <p className="font-light mt-2">Username</p>
-          <input
-              type="text"
-              name="Username"
-              value={user.nickname}
-              onChange={handleInputChange}
-              className="p-2"
-              style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }}
-            />
-           <p className="font-light">Password</p>
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={handlePasswordChange}
-              className="p-2"
-              style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }}
-            />
-            <div className="flex items-center gap-2 mt-4">
-          <p className="font-light">Account Privacy</p>
-          <label className="switch">
-            <input type="checkbox" checked={isPrivate}  style={{
-    accentColor: isPrivate ? "#a0b6cf" : "",transform: "scale(1.2)", // Scale the checkbox to make it larger
-    width: '15px',  // Optional width for alignment purposes
-    height: '15px', // Use accentColor to apply color when checked
-  }} onChange={handleTogglePrivacy} />
-            <span className="slider round"></span>
-          </label>
-          <span>{isPrivate ? 'Private' : 'Public'}</span>
-        </div>
-          <button onClick={handleSaveChanges} className="mt-2 p-2 font-semibold" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color:savedTheme === 'light' ? '#26374a' : '#26374a' , borderRadius: '5px' }}>
-            Save Changes
-          </button>
-        </div>
+        <p className="font-semibold mt-6 text-lg">Account settings</p>
+  <p className="font-light mt-3 mb-2">Username</p>
+  <input
+      type="text"
+      name="Username"
+      value={user.nickname}
+      onChange={handleInputChange}
+      className="p-2"
+      style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
+    />
+   <p className="font-light mt-3 mb-2">Password</p>
+    <input
+      type="password"
+      name="password"
+      value={password}
+      onChange={handlePasswordChange}
+      className="p-2"
+      style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
+    />
+    <div className="flex items-center gap-2 mt-4">
+  <p className="font-light">Account Privacy</p>
+  <label className="switch">
+    <input type="checkbox" checked={isPrivate}  style={{
+accentColor: isPrivate ? "#a0b6cf" : "",transform: "scale(1.2)", // Scale the checkbox to make it larger
+width: '15px',  // Optional width for alignment purposes
+height: '15px', // Use accentColor to apply color when checked
+}} onChange={handleTogglePrivacy} />
+    <span className="slider round"></span>
+  </label>
+  <span>{isPrivate ? 'Private' : 'Public'}</span>
+  </div>
+        <button onClick={handleSaveChanges} className="mt-2 p-2 font-semibold" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color: savedTheme === 'light' ? '#26374a' : '#26374a', borderRadius: '5px' }}>
+          Save Changes
+        </button>
       </div>
-      {savedChangesMessage && 
-      <div>
+      {savedChangesMessage && (
         <Snackbar
-        open={savedChangesMessage}
-        sx={{backgroundColor:'#a0cfa0',color:'#264a26', borderRadius:15}}
-        autoHideDuration={6000}
-        onClose={() => setSavedChangesMessage(false)}
-       
-      >
-         <SnackbarContent
-            sx={{
-              backgroundColor: '#a0cfa0',
-              color: '#264a26',
-              fontWeight:500,
-             
-            }}
+          open={savedChangesMessage}
+          sx={{ backgroundColor: '#a0cfa0', color: '#264a26', borderRadius: 15 }}
+          autoHideDuration={6000}
+          onClose={() => setSavedChangesMessage(false)}
+        >
+          <SnackbarContent
+            sx={{ backgroundColor: '#a0cfa0', color: '#264a26', fontWeight: 500 }}
             message="Changes are made successfully"
           />
-      </Snackbar>
-      </div>
-      }
+        </Snackbar>
+      )}
+       {changesDescription && (
+        <Snackbar
+          open={changesDescription}
+          sx={{ backgroundColor: '#cfcfa0', color: '#4a4a26', borderRadius: 15 }}
+          autoHideDuration={6000}
+          onClose={() => setChangesDescription(false)}
+        >
+          <SnackbarContent
+            sx={{ backgroundColor: '#cfcfa0', color: '#4a4a26', fontWeight: 500 }}
+            message="Description must have 15 letters max"
+          />
+        </Snackbar>
+      )}
     </div>
   );
-}
+};
+
 
 const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
 
