@@ -34,6 +34,9 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import { TbMessagesOff } from "react-icons/tb";
 import LockIcon from '@mui/icons-material/Lock';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 const Main = () => {
 
   const [user, setUser] = useState(null);
@@ -188,13 +191,14 @@ useEffect(() => {
   );
 
 
+
   ///profile adjustmens props ////
  
 
   return (
     <div className="flex " style={{ backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b',height:'100vh',overflowY:'auto' }}>
       {/* Sidebar */}
-      <div className={`fixed flex flex-col justify-around  pl-3 ${themeClass}`} style={{ width: '20%', height: '100vh', backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b',
+      <div className={`hidden lg:flex fixed  flex-col justify-around  pl-3 ${themeClass}`} style={{ width: '20%', height: '100vh', backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b',
         borderRight:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45',color:savedTheme==='light'?'#232629':'#fbfbfb'
        }}>
         <h1 className="font-bold text-xl " style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>StarWays</h1>
@@ -244,7 +248,7 @@ useEffect(() => {
         className="flex items-center"
         style={{ minWidth: 'auto', padding: 0 }}
       >
-        <MenuIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb'}}/>
+        <MenuIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
         <p className="ml-2 special" style={{color:savedTheme==='light'?'#232629':'#fbfbfb'}}>Menu</p>
       </Button>
       <Menu
@@ -259,7 +263,7 @@ useEffect(() => {
           style: {
             marginTop: '-40px', // Adjust to space between button and menu
             padding:'10px',
-            zIndex: 1200, // Ensure the menu appears above other content
+            zIndex: 120, // Ensure the menu appears above other content
         color:savedTheme==='light'?'#232629':'#fbfbfb',backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',
         border:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'
           },
@@ -271,26 +275,265 @@ useEffect(() => {
       </Menu>
     </div>
       </div>
+     <div>
+      <div className="flex items-center lg:hidden fixed top-0 w-full py-2 justify-between h-fit"
+      style={{backgroundColor:savedTheme==='light'?'#eff0f1':'#18191b',zIndex:1000,color: savedTheme === 'light' ? '#232629' : '#fbfbfb',borderBottom:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
+      >
+      <h1 className="font-bold text-xl " style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb',marginLeft:'5px' }}>StarWays</h1>
+      <div className="flex gap-4">
+      <div onClick={() => handleTabChange('messages')} id="message" 
+         className={getItemClass('messages')}>
+            <QuestionAnswerIcon/>
+            
+            {messages.length > 0 && <span  style={{borderRadius:'50%',background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}} className=" p-0.5 -ml-2.5 -mt-4  font-medium text-xs notification-badge"> {messagesCount > 0 && `${messagesCount}`}</span>}
+        </div>
+        <div onClick={() => handleTabChange('notification')} id="notifi"
+         className={getItemClass('notification')}>
+          
+            <NotificationsIcon/>
+            
+           
+            <p className="p-0.5 rounded-full -ml-3 -mt-4 font-medium text-xs" style={{background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}}> {notificationsCount > 0 && `${notificationsCount}`}</p> {/* Show count only if > 0 */}
+        </div>
+      </div>
+      </div>
+     <div className="flex lg:hidden fixed bottom-0 w-full py-2 justify-around h-fit"
+      style={{backgroundColor:savedTheme==='light'?'#eff0f1':'#18191b', color: savedTheme === 'light' ? '#232629' : '#fbfbfb',  borderTop:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45',}}
+     >
+      <div onClick={() => handleTabChange('home')} id="home" className={getItemClass('home')}>
+        {activeTab === 'home' ?  <HomeIcon />: <HomeOutlinedIcon />}
+      </div>
+        <div onClick={() => handleTabChange('searchplusExplore')} id="search" className={getItemClass('searchplusExplore')}>
+            <SearchIcon/>
+           
+        </div>
+        <div onClick={() => handleTabChange('create')} id="add"
+        className={getItemClass('create')}>
+          
+          {activeTab === 'create' ? <AddCircleIcon/>  : <AddCircleOutlineOutlinedIcon/>} 
+        </div>
+        <div  onClick={() => handleTabChange('profile')} id="profile" className={getItemClass('profile')}
+          style={{borderRadius:'100%',border:activeTab === 'profile' ? '1px solid #a0b6cf':'',height:'fit-content',width:'fit-content',padding:'2px', display: 'flex', // To center the avatar within the div
+            alignItems: 'center',
+            justifyContent: 'center'}}
+          >
+        <Avatar sx={{width:'30px',height:'30px'}} alt={user.nickname}src={user.avatar || ''} />
+           
+        </div>
+      </div>
+     </div>
 
       {/* Main content */}
-      <div className="flex-1" style={{ marginLeft: '25%', padding: '16px' }}>
+      <div className="flow flex-1 overflow-y-auto mb-12 mt-6" style={{  padding: '16px' }}>
       {activeTab === 'profile' && !editProfile && (
-        <Profile  user={user} posts={posts} setPosts={setPosts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
+        <Profile updateTheme={updateTheme} user={user} posts={posts} setPosts={setPosts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
       )}
       {editProfile && (
         <EditProfile handleGoBack={handleGoBack} />
       )}
-        {activeTab === 'home' && <div>Home Content</div>}
+        {activeTab === 'home' && <HomeComponent/>}
         {activeTab === 'search' && <Search />}
+        {activeTab === 'searchplusExplore' && <SearchPlusExplore />}
         {activeTab === 'explore' && <ExploreComponent/>}
         {activeTab === 'messages' && <div><SendMessage user={showUserProfile}/></div>}
         {activeTab === 'notification' && <Notifications user={user} />}
         {activeTab === 'create' &&   <Create highlight={highlight} toggleHighlight={toggleHighlight} user={user} handleAddPost={handleAddPost} />}
+        <div className="empty3 block lg:hidden"></div>
       </div>
       
     </div>
   );
 }
+
+
+
+const HomeComponent = () => {
+  const [allPosts, setAllPosts] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [bookmarks, setBookmarks] = useState({});
+  const [likedPosts, setLikedPosts] = useState({});
+
+  // Fetch friends and their posts
+  useEffect(() => {
+    const fetchFriendPosts = async () => {
+      setLoading(true);
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+
+        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
+          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
+
+          // Fetch posts from localStorage
+          const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+
+          // Filter posts from friends only
+          const friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
+          setAllPosts(friendPosts);
+
+          // Fetch all users to get friend details
+          const response = await axios.get('http://localhost:5000/users');
+          const allUsers = response.data;
+
+          // Filter out only friends from the fetched users
+          const friendUsers = allUsers.filter(user => friendIds.includes(user.id));
+          setFriends(friendUsers);
+        } else {
+          setError('No friends found for this user.');
+        }
+      } catch (err) {
+        setError('Failed to fetch friends or posts.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFriendPosts();
+  }, []);
+
+  // Handle bookmark and like actions
+  const handleToggleBookmark = (postId) => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || typeof storedUser !== 'object') {
+      console.error('Logged-in user data is invalid or missing');
+      return;
+    }
+
+    const currentUserNickname = storedUser.nickname;
+    const currentUserId = storedUser.id;
+
+    const post = allPosts.find(post => post.id === postId);
+    if (!post) return;
+
+    const postOwnerId = post.userId;
+
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[postOwnerId] || [];
+
+    setBookmarks(prevBookmarks => {
+      const updatedBookmarks = { ...prevBookmarks };
+      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
+
+      if (isBookmarked) {
+        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
+      } else {
+        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
+
+        userNotifications.push({
+          senderNickname: currentUserNickname,
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          action: 'liked',
+          action2: 'your post:',
+          id: Date.now(),
+        });
+      }
+
+      storedNotifications[postOwnerId] = userNotifications;
+      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+
+      setLikedPosts(prevLikedPosts => {
+        const updatedLikedPosts = { ...prevLikedPosts };
+
+        if (updatedLikedPosts[postId]) {
+          delete updatedLikedPosts[postId];
+        } else {
+          updatedLikedPosts[postId] = true;
+        }
+
+        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+        savedLiked[currentUserId] = updatedLikedPosts;
+        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
+
+        return updatedLikedPosts;
+      });
+
+      return updatedBookmarks;
+    });
+  };
+
+  // Load liked posts from localStorage when component mounts
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setLikedPosts(savedLikedPosts[currentUserId] || {});
+    }
+  }, []);
+
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+  return (
+    <div style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>
+      <h1 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="hidden lg:block font-bold text-3xl">Home</h1>
+      {loading && <p>Loading friends and posts...</p>}
+      {error && <p>{error}</p>}
+      <div className="empty3 -mt-3"></div>
+      {!loading && !error && allPosts.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {allPosts.map((post) => {
+            const user = friends.find(friend => friend.id === post.userId) || { nickname: 'Unknown User' };
+
+            return (
+              <div
+                key={post.id}
+                className="post p-4 flex flex-col"
+                style={{
+                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                  borderRadius: '5px',
+                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                }}
+              >
+                <div className="flex justify-between gap-2 items-center -ml-2">
+                  <div className="flex gap-2 items-center -mt-2 ml-1">
+                    {user.avatar && (
+                      <Avatar
+                        src={user.avatar}
+                        alt={`${user.nickname}'s avatar`}
+                        className="w-8 h-8 rounded-full"
+                        style={{ objectFit: 'cover' }}
+                      />
+                    )}
+                    <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
+                      <b>{user.nickname}</b>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col mt-4">
+                  <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                  <p>{post.text}</p>
+                </div>
+                <div className="mt-4">
+                  <Checkbox
+                    icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                    checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                    checked={!!likedPosts[post.id]}
+                    onChange={() => handleToggleBookmark(post.id)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <div className="empty"></div>
+        </div>
+      ) : (
+        <p>
+          <div className="flex flex-col  items-center justify-center mt-12">
+        <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+        <CheckCircleIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+        </div>
+          <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">You are all caught up</p>
+        </div></p>
+      )}
+    </div>
+  );
+};
+
+
 
 
 const ExploreComponent = () => {
@@ -474,11 +717,343 @@ const ExploreComponent = () => {
 
 
 
+const SearchPlusExplore =()=>{
+  const [allPosts, setAllPosts] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Fetch posts from localStorage
+    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    setAllPosts(storedPosts);
+
+    // Fetch users from backend
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
+        setAllUsers(response.data);
+      } catch (err) {
+        setError('Failed to fetch users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const getUserById = (userId) => {
+    return allUsers.find((user) => user.id === userId) || { nickname: 'Unknown User'};
+  };
+
+  const [bookmarks, setBookmarks] = useState({});
+  const [likedPosts, setLikedPosts] = useState({});
+
+  const handleToggleBookmark = (postId) => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser || typeof storedUser !== 'object') {
+      console.error('Logged-in user data is invalid or missing');
+      return;
+    }
+
+    const currentUserNickname = storedUser.nickname;
+    const currentUserId = storedUser.id;
+
+    const post = allPosts.find(post => post.id === postId);
+    if (!post) return;
+
+    const postOwnerId = post.userId;
+
+    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const userNotifications = storedNotifications[postOwnerId] || [];
+
+    setBookmarks(prevBookmarks => {
+      const updatedBookmarks = { ...prevBookmarks };
+      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
+
+      if (isBookmarked) {
+        // Remove from bookmarks
+        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
+      } else {
+        // Add to bookmarks
+        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
+
+        // Add notification
+        userNotifications.push({
+          senderNickname: currentUserNickname,
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          action: 'liked',
+          action2: 'your post:',
+          id: Date.now(),
+        });
+      }
+
+      // Update notifications in localStorage
+      storedNotifications[postOwnerId] = userNotifications;
+      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+
+      // Update bookmarks in localStorage
+      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
+
+      // Handle liking the post and updating likedPosts
+      setLikedPosts(prevLikedPosts => {
+        const updatedLikedPosts = { ...prevLikedPosts };
+
+        if (updatedLikedPosts[postId]) {
+          delete updatedLikedPosts[postId]; // Unliking the post
+        } else {
+          updatedLikedPosts[postId] = true; // Liking the post
+        }
+
+        // Update liked posts in localStorage
+        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+        savedLiked[currentUserId] = updatedLikedPosts;
+        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
+
+        // Update the state
+        return updatedLikedPosts;
+      });
+
+      return updatedBookmarks;
+    });
+  };
+
+  // Load liked posts from localStorage when component mounts
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setLikedPosts(savedLikedPosts[currentUserId] || {});
+    }
+  }, []);
+  const savedTheme = localStorage.getItem('color') || 'light';
+
+
+  ////////
+
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  
+  const [userPosts, setUserPosts] = useState([]);
+ 
+
+
+  const [showUserProfile,setShowUserProfile]=useState(null)
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        // Fetch users from backend or localStorage
+        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
+        setAllUsers(response.data);
+      } catch (err) {
+        setError('Failed to fetch users');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(allUsers);
+    } else {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      const filtered = allUsers.filter(user =>
+        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, allUsers]);
+
+  const handleSearch = () => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers(allUsers);
+    } else {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      const filtered = allUsers.filter(user =>
+        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+      );
+      setFilteredUsers(filtered);
+    }
+  };
+
+
+  const showUser = async  (user) => {
+    setShowUserProfile(user);
+
+    const allPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    const userPosts = allPosts.filter(post => post.userId === user.id);
+    try {
+      const response = await axios.get(`http://localhost:5000/posts?userId=${user.id}`); // Fetch posts by userId
+      setUserPosts(response.data);
+    } catch (err) {
+      setError('Failed to fetch user posts');
+    }
+    setUserPosts(userPosts);
+  };
+
+  const handleBackToSearch = () => {
+    setShowUserProfile(null);
+    setUserPosts([]);
+  };
+
+
+  const style = {
+   
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+ 
+  };
+
+  const style2 = {
+    backgroundColor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
+     border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+   borderRadius:'10px',
+   width:'400px'
+ 
+  };
+
+  const adjustments = showUserProfile ? "justify-center items-stretch":"justify-center items-center"
+
+
+  return( 
+    <div>
+       <div className={`flex flex-col ${adjustments}`} style={style}>
+      {showUserProfile ? (
+        <ProfileUsers
+        allUsers={allUsers}
+        posts={userPosts}
+          user={showUserProfile}
+          onBack={handleBackToSearch}
+        />
+      ) : (
+        <>
+         <div className="">
+         <input
+            type="text"
+            placeholder="Search users..."
+            className="mt-8 lg:mt-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+              padding: '5px',
+              borderRadius: '5px',
+              border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+              width: '300px',
+            }}
+          />
+         </div>
+         
+          <div>
+            {searchQuery.trim() === '' ? (
+              <div>
+                  <div style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>
+      {loading && <p>Loading users...</p>}
+      {error && <p>{error}</p>}
+      <div className="empty3 -mt-3"></div>
+      {!loading && !error && allPosts.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+          {allPosts.map((post) => {
+            const user = getUserById(post.userId);
+
+            return (
+              <div
+                key={post.id}
+                className="post p-4 flex flex-col"
+                style={{
+                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                  borderRadius: '5px',
+                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                }}
+              >
+                
+                <div className="flex justify-between gap-2 items-center -ml-2">
+                  <div className="flex gap-2 items-center -mt-2 ml-1">
+                  {user.avatar && (
+                    <Avatar
+                      src={user.avatar}
+                      alt={`${user.nickname}'s avatar`}
+                      className="w-8 h-8 rounded-full"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  )}
+                  <p style={{ color:savedTheme ==='light' ? '#26374a':'a0b6cf' }}>
+                    <b>{user.nickname}</b>
+                  </p>
+                  </div>
+                </div>
+
+                
+                <div className="flex flex-col mt-4">
+                  <p ><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                  <p>{post.text}</p>
+                </div>
+               <div className="mt-4">
+               <Checkbox
+            icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
+            checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
+            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
+            onChange={() => handleToggleBookmark(post.id)}
+          />
+               </div>
+              </div>
+            );
+          })}
+          <div className="empty"></div>
+        </div>
+      ) : (
+        <p>No posts available.</p>
+      )}
+    </div>
+              </div> // Message displayed when there's no query
+            ) : filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <div
+                  onClick={() => showUser(user)}
+                  className="usersSearch flex justify-between w-full items-center gap-3 mt-3 p-2"
+                  style={style2}
+                  key={user.id}
+                >
+                  <div className="flex gap-3" style={{zIndex:0}}>
+                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px',zIndex:0 }} />
+                  <div className="flex flex-col gap-2">
+                    <p className="font-semibold">{user.nickname}</p> {/* Displaying 'nickname' */}
+                    <p className="font-light text-sm">{user.description}</p> {/* Displaying 'description' */}
+                     
+                  </div>
+                  </div>
+                  
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col  items-center justify-center mt-12">
+              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
+              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+              </div>
+                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No users</p>
+              </div>// Message displayed when no users match the query
+            )}
+          </div>
+        </>
+      )}
+    </div>
+ 
+    </div>
+  )
+}
 
 
 
-
-const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
+const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
   const [user, setUser] = useState(null);
   const [password, setPassword] = useState('');
   const [theme,setTheme]=useState('light')
@@ -487,6 +1062,23 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   const [selected,setSelected]=useState(null) //// show specific post state 
   const [open, setOpen] = useState(false);
   
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const open1 = Boolean(anchorEl);
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleCloseLogOut = () => {
+      setAnchorEl(null);
+      Cookies.set('isAuthenticated', 'false')
+    };
+
 
   const handleClickShow = (post)=>{      //// toggle the post 
     setSelected(post)
@@ -585,7 +1177,7 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
   }, []);
 
   if (!user) {
-    return <div>Loading user data...</div>;
+    return <div className="flex items-center justify-center">Loading user data...</div>;
   }
 
  
@@ -600,7 +1192,7 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    width: 400,
+    width: 300,
     bgcolor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
     color: savedTheme ==='light'? '#232629' : '#fbfbfb',
    border: savedTheme ==='light'?'1px solid #3b3f45':'1 px solid #dddfe2',
@@ -609,23 +1201,60 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
     p: 4,
   };
 
+
+
   return(
-   <div style={{ color:savedTheme==='light'?'#232629':'#fbfbfb',marginTop:30}}>
+   <div style={{ color:savedTheme==='light'?'#232629':'#fbfbfb',marginTop:50}}>
     <div className="flex gap-6 items-center">
-    <Avatar sx={{width:'125px',height:'125px'}} alt={user.nickname} src={user.avatar || ''}/>
+   <div className="hidden md:block"> <Avatar  sx={{width:'125px',height:'125px'}} alt={user.nickname} src={user.avatar || ''}/></div>
+    <div className="block md:hidden"><Avatar  sx={{width:'75px',height:'75px'}} alt={user.nickname} src={user.avatar || ''}/></div>
    <div className="flex flex-col gap-3">
    <div className="flex gap-3">
     <h1 className="font-medium text-xl"> {user.nickname}</h1>
-    <button onClick={()=>toggleEdit('editProfile')} className="font-ligt text-sm px-1"
+    <button onClick={()=>toggleEdit('editProfile')} className="font-ligt text-xs md:text-sm px-0.5 md:px-1"
     style={{backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',borderRadius:'10px',
       border:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45',
       color:savedTheme==='light'?'#232629':'#fbfbfb',
     }}
     >Edit Profile</button>
+    <Button
+        id="basic-button"
+        aria-controls={open1 ? 'basic-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open1 ? 'true' : undefined}
+        onClick={handleClick}
+        className="flex items-center"
+        style={{ minWidth: 'auto', padding: 0 }}
+      >
+        <MenuIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
+
+      </Button>
+      <Menu
+        id="basic-menu"
+        anchorEl={anchorEl}
+        open={open1}
+        onClose={handleClose}
+        MenuListProps={{
+          'aria-labelledby': 'basic-button',
+        }}
+        PaperProps={{
+          style: {
+            marginTop: '-40px', // Adjust to space between button and menu
+            padding:'10px',
+            zIndex: 120, // Ensure the menu appears above other content
+        color:savedTheme==='light'?'#232629':'#fbfbfb',backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',
+        border:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'
+          },
+        }}
+      >
+        <Test updateTheme={updateTheme}/>
+        <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleClose}>My account</MenuItem>
+        <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleCloseLogOut}><a href="/">Log Out</a></MenuItem>
+      </Menu>
    </div>
-   <div className="flex items-center gap-6">
-           <p>{userPosts.length} <b className="font-semibold ml-1">posts</b> </p>
-           <p className="cursor-pointer" onClick={()=>setFriendsChecker(true)}>{friendCount} <b className="font-semibold ml-1">friends</b></p>
+   <div className="flex items-center gap-4 md:gap-6">
+           <p className="flex gap-2">{userPosts.length} <b className="font-medium md:font-semibold ml-1">posts</b> </p>
+           <p className="flex gap-2 cursor-pointer" onClick={()=>setFriendsChecker(true)}>{friendCount} <b className="font-semibold ml-1">friends</b></p>
          </div>
     <p>{user.description}</p> 
    </div>
@@ -634,16 +1263,7 @@ const Profile =({handleGoBack,toggleEdit,posts,setPosts})=>{
     <div className="flex justify-center w-full mt-8 gap-4"
     style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
     >
-    <div className="flex justify-center mt-6 gap-6">
-      <div className="flex  gap-2 items-center justify-center">
-    <DynamicFeedIcon/>
-    <p>Posts</p>
-    </div>
-    <div className="flex gap-2">
-      <BookmarkIcon/>
-      <p>Saved</p>
-    </div>
-    </div>
+    
     </div>
     
         
@@ -850,6 +1470,7 @@ const Search = () => {
           <input
             type="text"
             placeholder="Search users..."
+            className="mt-28 lg:mt-0"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -877,8 +1498,8 @@ const Search = () => {
                   style={style2}
                   key={user.id}
                 >
-                  <div className="flex gap-3">
-                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px' }} />
+                  <div className="flex gap-3" style={{zIndex:0}}>
+                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px',zIndex:0 }} />
                   <div className="flex flex-col gap-2">
                     <p className="font-semibold">{user.nickname}</p> {/* Displaying 'nickname' */}
                     <p className="font-light text-sm">{user.description}</p> {/* Displaying 'description' */}
@@ -1199,7 +1820,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       {showMessage ? 
     <SendMessage user={selectedUser} posts={posts} friendCount={friendCount}  goBackMessage={() => setShowMessage(false)}/>
     :(
-      <div className="flex justify-between w-full mt-12">
+      <div className="flex justify-between w-full mt-12 ml-4 ">
       <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
       <ArrowBackIosNewIcon />
      </button>
@@ -1237,16 +1858,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
          <div className="flex justify-center items-center w-full  gap-4"
          style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
          >
-         <div className="flex justify-center mt-6 gap-6">
-           <div className="flex  gap-2 items-center justify-center">
-         <DynamicFeedIcon/>
-         <p>Posts</p>
-         </div>
-         <div className="flex gap-2">
-           <BookmarkIcon/>
-           <p>Saved</p>
-         </div>
-         </div>
+         
          </div>
          {user.isPrivate && friendStatus !== 'Friends' ? (
   // If the user is private and the viewer is not a friend, show a message or empty state
@@ -1261,7 +1873,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     posts.map((post) => (
       <div
         key={post.id}
-        className="post p-4 mb-4 flex justify-between w-full"
+        className="post p-4 mb-4 mt-4 -ml-24 flex justify-between w-full"
         style={{
           backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
           borderRadius: '5px',
@@ -1280,7 +1892,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
           <p><strong>Feeling:</strong> {post.feeling}</p>
           <p>{post.text}</p>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center" style={{zIndex:0}}>
           <Checkbox
            icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
            checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
@@ -1291,7 +1903,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       </div>
     ))
   ) : (
-    <div className="flex flex-col items-center justify-center mt-12">
+    <div className="flex flex-col items-center justify-center mt-12 mb-4  -ml-24 w-full">
       <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
         <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
       </div>
@@ -1669,7 +2281,7 @@ const EditProfile = ({ handleGoBack }) => {
   };
 
   if (!user) {
-    return <div>Loading user data...</div>;
+    return <div className="mt-12 lg:mt-0">Loading user data...</div>;
   }
 
   const savedTheme = localStorage.getItem('color') || 'light';
@@ -1679,8 +2291,8 @@ const EditProfile = ({ handleGoBack }) => {
       <div className="cursor-pointer h-fit" onClick={handleGoBack} style={{ color: savedTheme === 'light' ? '#5e666e' : '#d6d9dc' }}>
         <ArrowBackIosNewIcon />
       </div>
-      <div className="flex flex-col w-3/4">
-        <div className="flex justify-between items-center gap-4 p-4" style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#232629', borderRadius: '10px' }}>
+      <div className="flex flex-col w-3/4 -ml-3 lg:-ml-0">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4 p-4" style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#232629', borderRadius: '10px' }}>
           <div className="flex gap-4">
             <Avatar sx={{ width: '55px', height: '55px' }} alt={user.nickname} src={image} /> {/* Use the image state */}
             <div className="flex flex-col">
@@ -1695,7 +2307,7 @@ const EditProfile = ({ handleGoBack }) => {
             placeholder="Enter image URL"
             value={image}
             onChange={handleImageChange} // Update image URL
-            className="p-2"
+            className="p-1 md:p-2"
             style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
           />
           <button onClick={handleSaveChanges} className="px-2 font-medium" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color: savedTheme === 'light' ? '#26374a' : '#26374a', borderRadius: '5px' }}>
@@ -1710,7 +2322,7 @@ const EditProfile = ({ handleGoBack }) => {
     name="description"
     value={user.description}
     onChange={handleInputChange}
-    className="p-2"
+    className="p-1 md:p-2"
     style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px', border:savedTheme ==='light'?'#dddfe2':'#3b3f45'}}
   />
 </div>
@@ -1828,7 +2440,7 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   
   const savedTheme = localStorage.getItem('color') || 'light';
   return (
-  <div>
+  <div className="mt-10 lg:mt-0">
       <div className="flex flex-col">
       <form className="flex flex-col" onSubmit={handleSubmit}>
        <div className="flex items-center gap-4 p-3" 
@@ -1848,7 +2460,8 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
         <select 
         style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }} 
         value={feeling} onChange={handleFeelingChange}>
-          <option value="">How are you Feeling</option>
+        <div className="hidden md:block">  <option value="">How are you Feeling</option></div>
+        <div className="block md:hidden">  <option value=""> Feeling</option></div>
           <option value="Happy">Happy</option>
           <option value="Sad">Sad</option>
           <option value="Angry">Angry</option>

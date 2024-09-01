@@ -56,12 +56,8 @@ const UserForm = ({ }) => {
       Cookies.set('isAuthenticated', 'true');
       localStorage.setItem('user', JSON.stringify(user));
       setTimeout(() => {
-        setLoading(false);
-        if (viewportWidth >= 1030) {
-          navigate('/mainResponsive');
-        } else {
+        setLoading(false);    
           navigate('/main');
-        }
       }, 2000); // Simulate loading for 2 seconds
     } else {
       setError('Invalid username or password');

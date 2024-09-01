@@ -11,6 +11,15 @@ body{
   color:#26374a;
 }
 
+.flow{
+  margin-left: 25%;
+}
+@media (max-width:1024px) {
+  .flow{
+    margin-left: 0%;
+  }
+}
+
 
 .empty{
   height: 150px;

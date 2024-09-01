@@ -12,7 +12,7 @@ import {
 import ExampleWrapper from './ExampleWrapper';
 import SignIn from './SignIn';
 import Main from './Main';
-import MainResponsive from './MainResponsive';
+
 
 import { QueryClient, QueryClientProvider } from 'react-query';
 
@@ -37,12 +37,7 @@ const router = createBrowserRouter([
                 <Main />
             </ProtectedRoute>,
   },
-  {
-    path: "/mainResponsive",
-    element:  <ProtectedRoute>
-                <MainResponsive />
-            </ProtectedRoute>,
-  },
+  
   
 ]);
 
