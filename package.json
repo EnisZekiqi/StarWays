@@ -19,6 +19,7 @@
     "react-query": "^3.39.3",
     "react-router-dom": "^6.25.1",
     "react-scripts": "5.0.1",
+    "three": "^0.168.0",
     "uvcanvas": "^0.2.1",
     "web-vitals": "^2.1.4"
   },

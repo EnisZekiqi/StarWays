@@ -37,6 +37,9 @@ import LockIcon from '@mui/icons-material/Lock';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
+import DoneOutlinedIcon from '@mui/icons-material/DoneOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import {motion} from 'framer-motion'
 const Main = () => {
 
   const [user, setUser] = useState(null);
@@ -46,6 +49,12 @@ const Main = () => {
     const [showUserProfile,setShowUserProfile]=useState(null)
     const [notifications, setNotifications] = useState([]);
     const [messages, setMessages] = useState([]);
+
+    const savedTheme = localStorage.getItem('color') || 'light';
+    const backgroundColor = savedTheme === 'light' ? '#eff0f1' : '#18191b';
+      const svgFillColor = savedTheme === 'light' ? '#26374a' : '#a0b6cf';
+      const textColor = savedTheme === 'light' ?  '#26374a' : '#a0b6cf';
+    
     useEffect(() => {
       if (user) {
         const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
@@ -155,16 +164,99 @@ useEffect(() => {
         setPosts(JSON.parse(storedPosts));
       }
     }, []);
-  
+    const [showIntro, setShowIntro] = useState(true);
 
-    
+    useEffect(() => {
+      // Automatically hide the intro after 5 seconds
+      const timer = setTimeout(() => {
+        setShowIntro(false);
+      }, 5000);
+      
+      // Delay user loading for the same duration
+      const userLoadingDelay = setTimeout(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+        const storedPosts = localStorage.getItem('posts');
+        if (storedPosts) {
+          setPosts(JSON.parse(storedPosts));
+        }
+      }, 5000);
+  
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(userLoadingDelay);
+      };
+    }, []);
+  
+    const introAnimation = {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 2 } },
+      exit: { opacity: 0, transition: { duration: 1 } }
+    };
+  
+   
+
+    if (showIntro) {
+      return (
+        <motion.div
+        className="fixed inset-0 z-50 flex flex-col md:flex-row items-center justify-center"
+        style={{ backgroundColor }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 0 }}
+        transition={{ delay: 4.5, duration: 0.5 }}
+      >
+        {/* Animated SVG */}
+        <motion.svg
+          width="150px"
+          viewBox="0 0 1024 1024"
+          xmlns="http://www.w3.org/2000/svg"
+          fill={svgFillColor}
+          stroke={svgFillColor}
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 2 }}
+        >
+          <g  fill={svgFillColor}>
+            <motion.path
+              d="M832 384l8 1.6-1.6 8 1.6 3.2-4.8 3.2-44.8 161.6-16-4.8 40-147.2-260.8 144-158.4 284.8-11.2-6.4-6.4 6.4-176-176 11.2-11.2 163.2 163.2 147.2-265.6-294.4-297.6 11.2-11.2v-8h9.6l3.2-3.2 3.2 3.2L664 208l1.6 16-395.2 22.4 278.4 278.4 276.8-153.6 6.4 12.8z"
+              stroke="#26374a"
+              strokeWidth="2"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 3 }}
+            />
+            <motion.path
+              d="M896 384c0 35.2-28.8 64-64 64s-64-28.8-64-64 28.8-64 64-64 64 28.8 64 64z m-656-32c-62.4 0-112-49.6-112-112s49.6-112 112-112 112 49.6 112 112-49.6 112-112 112z m304 336c-80 0-144-64-144-144s64-144 144-144 144 64 144 144-64 144-144 144z m-224 144c0-35.2 28.8-64 64-64s64 28.8 64 64-28.8 64-64 64-64-28.8-64-64z m-144-176c0-17.6 14.4-32 32-32s32 14.4 32 32-14.4 32-32 32-32-14.4-32-32z m448-440c0-22.4 17.6-40 40-40s40 17.6 40 40-17.6 40-40 40-40-17.6-40-40zM736 560c0-27.2 20.8-48 48-48s48 20.8 48 48-20.8 48-48 48-48-20.8-48-48z"
+              fill={svgFillColor}
+            />
+          </g>
+        </motion.svg>
+  
+        {/* Animated Text */}
+        <motion.h1
+          className=" text-4xl mt-8"
+          style={{ color: textColor }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.5, duration: 1 }}
+        >
+          Starways
+        </motion.h1>
+      </motion.div>
+      );
+    }
+  
     if (!user) {
-      return <div>Loading user data...</div>;
+      return <div style={{backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b'}}>Loading user data...</div>;
     }
 
   
     
-      const savedTheme = localStorage.getItem('color') || 'light';
+     
+
+      
 
     const colors ={
         css:{
@@ -190,13 +282,16 @@ useEffect(() => {
     `cursor-pointer flex gap-2 items-center sidebar-item ${activeTab === tab ? 'active' : ''}`
   );
 
-
-
+ 
   ///profile adjustmens props ////
  
 
   return (
     <div className="flex " style={{ backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b',height:'100vh',overflowY:'auto' }}>
+     
+    {/* Demo for loggin in for the first time*/}
+      
+    
       {/* Sidebar */}
       <div className={`hidden lg:flex fixed  flex-col justify-around  pl-3 ${themeClass}`} style={{ width: '20%', height: '100vh', backgroundColor: savedTheme === 'light' ? '#eff0f1' : '#18191b',
         borderRight:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45',color:savedTheme==='light'?'#232629':'#fbfbfb'
@@ -313,7 +408,7 @@ useEffect(() => {
           {activeTab === 'create' ? <AddCircleIcon/>  : <AddCircleOutlineOutlinedIcon/>} 
         </div>
         <div  onClick={() => handleTabChange('profile')} id="profile" className={getItemClass('profile')}
-          style={{borderRadius:'100%',border:activeTab === 'profile' ? '1px solid #a0b6cf':'',height:'fit-content',width:'fit-content',padding:'2px', display: 'flex', // To center the avatar within the div
+          style={{borderRadius:'100%',border:activeTab === 'profile' ?(savedTheme === 'light'? '1px solid #26374a':'1px solid #a0b6cf'):'',height:'fit-content',width:'fit-content',padding:'2px', display: 'flex', // To center the avatar within the div
             alignItems: 'center',
             justifyContent: 'center'}}
           >
@@ -1226,7 +1321,7 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
         className="flex items-center"
         style={{ minWidth: 'auto', padding: 0 }}
       >
-        <MenuIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
+        <SettingsOutlinedIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
 
       </Button>
       <Menu
@@ -1450,7 +1545,7 @@ const Search = () => {
     color: savedTheme ==='light'? '#232629' : '#fbfbfb',
      border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
    borderRadius:'10px',
-   width:'400px'
+   width:'300px'
  
   };
 
@@ -1479,6 +1574,7 @@ const Search = () => {
               borderRadius: '5px',
               border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
               width: '300px',
+              marginBottom:'10px'
             }}
           />
          
@@ -1494,7 +1590,7 @@ const Search = () => {
               filteredUsers.map((user) => (
                 <div
                   onClick={() => showUser(user)}
-                  className="usersSearch flex justify-between w-2/3 items-center gap-3 mt-3 p-2"
+                  className="usersSearch flex justify-between items-center gap-3 mt-3 p-2"
                   style={style2}
                   key={user.id}
                 >
@@ -1825,8 +1921,9 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       <ArrowBackIosNewIcon />
      </button>
      <div className="flex gap-6 w-full ">
-       <div className="h-fit">
-       <Avatar sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
+       <div className="h-fit flex ">
+       <div className="hidden md:block"><Avatar  sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} /></div>
+       <div className="block md:hidden"><Avatar className="block md:hidden" sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} /></div>
        </div>
        <div className="flex flex-col gap-3 w-full">
          <div className="flex gap-3">
@@ -1837,9 +1934,9 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
            <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
          </div>
          <p>{user.description}</p>
-         <div className="flex gap-4 mt-4">
+         <div className="flex gap-4 mt-4 -ml-20 md:-ml-0">
          {friendStatus === 'Add Friend' && (
-             <button  style={{color: '#26374a',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
+             <button  style={{color: savedTheme === 'light' ? '#26374a' : '#a0b6cf',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
                Add Friend
              </button>
            )}
@@ -1849,13 +1946,13 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
              </button>
            )}
            {friendStatus === 'Friends' && (
-             <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} className=" px-4 py-2 rounded" >
+             <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} className=" px-4 py-2 rounded" >
                Friends
              </button>
            )}
-           <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:'#a0b6cf'}} onClick={() => setModalOpen(true)} className=" px-4 py-2 rounded">Send Message</button>
+           <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} onClick={() => setModalOpen(true)} className=" px-4 py-2 rounded">Send Message</button>
          </div> {/* Displaying 'description' */}
-         <div className="flex justify-center items-center w-full  gap-4"
+         <div className="flex justify-center items-center w-full  -ml-20 md:-ml-0"
          style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
          >
          
@@ -1871,16 +1968,18 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
 ) : (
   posts.length > 0 ? (
     posts.map((post) => (
-      <div
+     <div className="relative">
+       <div
         key={post.id}
-        className="post p-4 mb-4 mt-4 -ml-24 flex justify-between w-full"
+        className="post absolute  p-4  mb-4 mt-4 -ml-20 flex flex-col md:flex-row justify-between w-full"
         style={{
           backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
           borderRadius: '5px',
           border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+          width:'100%'
         }}
       >
-        <div className="flex flex-col">
+        <div className="flex flex-col mb-3 md:mb-0">
           {post.highlight === 'Highlighted' && (
             <div
               className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
@@ -1889,7 +1988,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
               Highlighted
             </div>
           )}
-          <p><strong>Feeling:</strong> {post.feeling}</p>
+          <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {post.feeling}</p>
           <p>{post.text}</p>
         </div>
         <div className="flex items-center" style={{zIndex:0}}>
@@ -1901,6 +2000,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
           />
         </div>
       </div>
+     </div>
     ))
   ) : (
     <div className="flex flex-col items-center justify-center mt-12 mb-4  -ml-24 w-full">
@@ -2062,8 +2162,11 @@ const SendMessage = (user)=>{
       message.senderId === currentUser.id || message.recipientId === currentUser.id
   );
   return (
-    <div className="messages p-4">
-      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-2xl mb-2">Messages</h2>
+    <div className="messages p-4 mt-6 md:mt-0">
+    <div className="flex justify-between items-center mb-0 md:mb-5">
+    <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">Messages</h2>
+    <button style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '5px' }} className="text-xs md:text-base" onClick={handleClearAllMessages}>Clear All Messages</button>
+    </div>
     {userMessages.length > 0 ? (
      <div>
       {userMessages.map((msg, index) => (
@@ -2071,17 +2174,20 @@ const SendMessage = (user)=>{
          <div className="flex items-center justify-between p-2 mb-2" key={index} style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
          <div className="">
          <p>
-            <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }}>{msg.senderNickname}</strong> to{' '}
-            <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }}>{msg.recipientNickname}</strong>: {msg.content}
+            <strong className="text-sm md:text-base" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.senderNickname}</strong> to{' '}
+            <strong className="text-sm md:text-base" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.recipientNickname}</strong> : <p className="text-sm md:text-base">{msg.content}</p>
           </p>
-          <span><strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="mr-4">Time:</strong>{new Date(msg.timestamp).toLocaleString()}</span>
+          <span className="text-xs md:text-base"><strong  style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} className="mr-4">Time:</strong>{new Date(msg.timestamp).toLocaleString()}</span>
           
          </div>
-         <button style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }} onClick={() => handleMarkAsRead(msg)}>Mark as Read</button>  
+        <div className="flex">
+        <button className="p-0.5 md:p-1.5 hidden md:block" style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px' }} onClick={() => handleMarkAsRead(msg)}>Mark as Read</button>  
+        <button className=" block md:hidden text-xs md:text-base" style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px',padding:'1px' }} onClick={() => handleMarkAsRead(msg)}><DoneOutlinedIcon/></button>  
+        </div>
         </div>
        </div>
       ))}
- <button style={{ marginTop: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '10px' }} className="pr-2" onClick={handleClearAllMessages}>Clear All Messages</button>
+
      </div>
     ) : (
       <div className="flex flex-col items-center justify-center mt-12">
@@ -2170,14 +2276,17 @@ const Notifications = ({ user }) => {
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
-    <div className="notifications p-4">
-      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-2xl mb-2">Notifications</h2>
+    <div className="notifications p-3 md:p-4 mt-6 md:mt-0">
+      <div className="flex justify-between  items-center mb-0 md:mb-5">
+      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">Notifications</h2>
+      <button className="text-xs md:text-base" onClick={clearAllNotifications} style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '4px' }}>Clear All Notifications</button>
+      </div>
       {notifications.length > 0 ? (
         <>
           {notifications.map((notification) => (
             <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
               <p className="font-normal text-sm" key={notification.id}>
-                <strong style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="font-semibold text-lg">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
+                <strong  style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="font-semibold text-sm md:text-base">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
               </p>
               {notification.action === 'Sent a friend request' ? (
                 <>
@@ -2187,11 +2296,14 @@ const Notifications = ({ user }) => {
                  </div>
                 </>
               ) : (
-                <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
+                <div className="flex">
+                  <button className="p-0.5 md:p-1.5 hidden md:block"  onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
+                  <button className=" block md:hidden" onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '1px' }}><DoneOutlinedIcon/></button>
+                </div>
               )}
             </div>
           ))}
-          <button onClick={clearAllNotifications} style={{ marginTop: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '10px' }}>Clear All Notifications</button>
+         
         </>
       ) : (
         <div className="flex flex-col items-center justify-center mt-12">
@@ -2441,7 +2553,7 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   const savedTheme = localStorage.getItem('color') || 'light';
   return (
   <div className="mt-10 lg:mt-0">
-      <div className="flex flex-col">
+      <div className="md:flex hidden  flex-col">
       <form className="flex flex-col" onSubmit={handleSubmit}>
        <div className="flex items-center gap-4 p-3" 
         style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : 'rgb(35, 38, 41)', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }} 
@@ -2474,6 +2586,48 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
       <button className="p-1" style={{backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',color: savedTheme === 'light' ? '#232629' : '#fbfbfb',border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'}} onClick={()=>toggleHighlight('Not Highlighted')}>Not Highlighted</button></div>
        <div className="flex justify-end mt-4">
        <button type="submit" className="px-2 font-medium " style={{ backgroundColor: '#A0B6CF', color: '#26374a', borderRadius: '5px',width:'20%' }}>
+          Post
+        </button>
+       </div>
+      </form>
+    </div>
+    <div className="md:hidden flex flex-col">
+      <form className="flex flex-col" onSubmit={handleSubmit}>
+       <div className="flex items-center gap-4 p-3" 
+        style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : 'rgb(35, 38, 41)', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px' }} 
+       >
+       <Avatar sx={{ width: '55px', height: '55px' }} alt={user.nickname} src={user.avatar || ''} />
+       <input
+         style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' :'rgb(35, 38, 41)', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',
+          border:savedTheme ==='light'?'1px solid #3b3f45':'1 px solid #dddfe2'
+          }} 
+          value={text}
+          onChange={handleTextChange}
+          placeholder="What's on your mind?"
+          className="p-2 w-full"
+        
+        />
+       
+       </div>
+      <div className="flex flex-col w-fit gap-4 mt-4 items-center" >
+        <p style={{color: savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-xs text-light">Choose if you want the post to be highlighted or not</p>
+         <div className="flex gap-4 mb-4">
+         <button className="p-1 text-sm font-semibold" style={{backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',color: savedTheme === 'light' ? '#232629' : '#fbfbfb',border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'}} onClick={()=>toggleHighlight('Highlighted')}>Highlighted</button>
+         <button className="p-1 text-sm font-semibold" style={{backgroundColor:savedTheme==='light'?'#fbfbfb':'#232629',color: savedTheme === 'light' ? '#232629' : '#fbfbfb',border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'}} onClick={()=>toggleHighlight('Not Highlighted')}>Not Highlighted</button>
+         </div>
+      </div>
+      <select 
+        style={{ backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',padding:'3px' }} 
+        value={feeling} onChange={handleFeelingChange}>
+        <div className="hidden md:block">  <option value="">How are you Feeling</option></div>
+        <div className="block md:hidden">  <option value=""> Feeling</option></div>
+          <option value="Happy">Happy</option>
+          <option value="Sad">Sad</option>
+          <option value="Angry">Angry</option>
+          <option value="Excited">Excited</option>
+        </select>
+       <div className="flex w-full justify-center mt-4">
+       <button type="submit" className="px-2 font-medium " style={{ backgroundColor: '#A0B6CF', color: '#26374a', borderRadius: '5px',width:'100%' }}>
           Post
         </button>
        </div>

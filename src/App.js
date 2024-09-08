@@ -15,6 +15,7 @@ import Home from './Home';
 import { Tranquiluxe } from 'uvcanvas';
 import Navbar from './Navbar';
 
+
 function App() {
 
   const queryClient = new QueryClient();
@@ -161,6 +162,7 @@ localStorage.setItem('gender',selectedGender)
         <ExamplePt2 toggleChoosenNumber={toggleChoosenNumber} toggleChoosenSlider={toggleChoosenSlider}/>
         </div>
         </div>
+      
       </div>
     </QueryClientProvider>
     </div>

@@ -119,6 +119,8 @@ const SignIn = () => {
       mutation.mutate(newUser, {
         onSuccess: () => {
           navigate('/main');
+          Cookies.set('Demo','true')
+          
         },
         onError: (err) => {
           if (err.response && err.response.status === 409) {
@@ -134,9 +136,9 @@ const SignIn = () => {
 
 
     return ( 
-        <div style={{backgroundColor:theme === 'light'?'#fbfbfb':'#18191b'}} className="h-screen">
+        <div style={{backgroundColor:theme === 'light'?'#fbfbfb':'#18191b'}} className="h-fit md:h-screen">
              <div>
-            <div style={colors.css} className="flex justify-between items-center">
+            <div style={colors.css} className="flex justify-between items-center ">
            <a href="/">
            <div className="wrapper" style={{backgroundColor:'#a0b6cf'}}>
             <svg width='55px' viewBox="0 0 1024 1024" class="icon" version="1.1" xmlns="http://www.w3.org/2000/svg" fill="#000000" stroke="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M832 384l8 1.6-1.6 8 1.6 3.2-4.8 3.2-44.8 161.6-16-4.8 40-147.2-260.8 144-158.4 284.8-11.2-6.4-6.4 6.4-176-176 11.2-11.2 163.2 163.2 147.2-265.6-294.4-297.6 11.2-11.2v-8h9.6l3.2-3.2 3.2 3.2L664 208l1.6 16-395.2 22.4 278.4 278.4 276.8-153.6 6.4 12.8z" fill="#26374a"></path><path d="M896 384c0 35.2-28.8 64-64 64s-64-28.8-64-64 28.8-64 64-64 64 28.8 64 64z m-656-32c-62.4 0-112-49.6-112-112s49.6-112 112-112 112 49.6 112 112-49.6 112-112 112z m304 336c-80 0-144-64-144-144s64-144 144-144 144 64 144 144-64 144-144 144z m-224 144c0-35.2 28.8-64 64-64s64 28.8 64 64-28.8 64-64 64-64-28.8-64-64z m-144-176c0-17.6 14.4-32 32-32s32 14.4 32 32-14.4 32-32 32-32-14.4-32-32z m448-440c0-22.4 17.6-40 40-40s40 17.6 40 40-17.6 40-40 40-40-17.6-40-40zM736 560c0-27.2 20.8-48 48-48s48 20.8 48 48-20.8 48-48 48-48-20.8-48-48z" fill="#26374a"></path></g></svg>
@@ -155,15 +157,15 @@ const SignIn = () => {
             </div>
         </div>
         <div className="empty2"/>
-       <div className="w-full flex items-center justify-center">
-       <div className="flex flex-col items-center justify-center w-1/2 px-4 pb-6 pt-4"
+       <div className="w-full flex items-center justify-center ">
+       <div className="flex flex-col items-center justify-center md:w-1/2 px-4 pb-6 pt-4"
         style={{backgroundColor:theme === 'light' ? '#fbfbfb':'#232629',
           border:theme === 'light '? '1px solid #dddfe2':'1px solid #dddfe2',
           borderRadius:'10px'
         }}
         >
          <form action="" onSubmit={handleSubmit} className="flex flex-col gap-4" >
-        <div className="flex justify-around gap-3">
+        <div className="flex justify-around gap-3 flex-col md:flex-row">
         <input
           type="text"
           placeholder="Username"
@@ -180,7 +182,7 @@ const SignIn = () => {
           
         />
         </div>
-        <div className="flex justify-around gap-3 ">
+        <div className="flex justify-around gap-3 flex-col md:flex-row">
         <input
             type="text"
             placeholder="Month"
@@ -230,6 +232,7 @@ const SignIn = () => {
         onClose={() => setOpen(false)}
         message={userError ? 'This username already exists' : error}
       />
+      <div className="empty3 block md:hidden"></div>
         </div>
      );
 }

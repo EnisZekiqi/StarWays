@@ -53,7 +53,7 @@ const UserForm = ({ }) => {
     
     if (user) {
       setLoading(true);
-      Cookies.set('isAuthenticated', 'true');
+      Cookies.set('isAuthenticated', 'true',{ expires: 10 });
       localStorage.setItem('user', JSON.stringify(user));
       setTimeout(() => {
         setLoading(false);    

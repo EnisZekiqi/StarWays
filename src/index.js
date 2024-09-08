@@ -16,6 +16,7 @@ import Main from './Main';
 
 import { QueryClient, QueryClientProvider } from 'react-query';
 
+
 const queryClient = new QueryClient();
 
 const router = createBrowserRouter([
@@ -34,7 +35,9 @@ const router = createBrowserRouter([
   {
     path: "/main",
     element:  <ProtectedRoute>
+            
                 <Main />
+            
             </ProtectedRoute>,
   },
   

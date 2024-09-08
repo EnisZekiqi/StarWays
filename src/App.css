@@ -119,7 +119,15 @@ transition: all 0.3s ease;
 .usersSearch:hover{
 border:1px solid #a0b6cf ;
 }
+.usersSearch{
+  width:400px
+}
 
+@media (max-width:764px) {
+  .usersSearch{
+    width:280px !important
+  }
+}
 .switch{
   color:#a0b6cf
 }

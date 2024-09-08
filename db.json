@@ -93,6 +93,30 @@
       "birthday": "12/1/2000",
       "gender": "Male",
       "description": "eeee"
+    },
+    {
+      "id": "69eb",
+      "nickname": "Goku",
+      "password": "gokuUi",
+      "birthday": "12/1/2003",
+      "gender": "Male",
+      "description": "Goku Ui"
+    },
+    {
+      "id": "72b8",
+      "nickname": "Vegeta ",
+      "password": "ultraego",
+      "birthday": "12/1/2000",
+      "gender": "Male",
+      "description": "UltraEgo"
+    },
+    {
+      "id": "f5e1",
+      "nickname": "Gokhan",
+      "password": "123123",
+      "birthday": "3/1/1999",
+      "gender": "Male",
+      "description": "eeeee"
     }
   ]
 }
