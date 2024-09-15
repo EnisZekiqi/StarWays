@@ -4,16 +4,15 @@ import axios from 'axios';
 
 
 const fetchUsers = async () => {
-  const { data } = await axios.get('http://localhost:5000/users');
-  return data;
+  const { data } = await axios.get('/db.json');
+  return data.users; // Ensure 'users' is an array
 };
 
 const UserList = ({ theme }) => {
-  const { data, error, isLoading } = useQuery('users', fetchUsers);
+  const { data = [], error, isLoading } = useQuery('users', fetchUsers);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error fetching data</div>;
-
 
   const styles = {
     list: {
@@ -26,7 +25,6 @@ const UserList = ({ theme }) => {
 
   return (
     <div style={styles.list}>
-        
       <h2>Stored Users</h2>
       <ul>
         {data.map((user, index) => (

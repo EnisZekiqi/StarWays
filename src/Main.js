@@ -39,6 +39,8 @@ import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 import DoneOutlinedIcon from '@mui/icons-material/DoneOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import Tooltip from '@mui/material/Tooltip';
+import { AiFillMoon } from "react-icons/ai";
 import {motion} from 'framer-motion'
 const Main = () => {
 
@@ -106,6 +108,7 @@ const [messagesCount,setMessagesCount]=useState(0)
     const handleCloseLogOut = () => {
         setAnchorEl(null);
         Cookies.set('isAuthenticated', 'false')
+        localStorage.removeItem('onlineStatus');
       };
 ///////Sidebar functions  /////
 const [activeTab, setActiveTab] = useState('home');
@@ -469,7 +472,7 @@ const HomeComponent = () => {
           setAllPosts(friendPosts);
 
           // Fetch all users to get friend details
-          const response = await axios.get('http://localhost:5000/users');
+          const response = await axios.get('/db.json');
           const allUsers = response.data;
 
           // Filter out only friends from the fetched users
@@ -636,6 +639,8 @@ const ExploreComponent = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [likedPosts, setLikedPosts] = useState({});
+  const savedTheme = localStorage.getItem('color') || 'light';
 
   useEffect(() => {
     // Fetch posts from localStorage
@@ -646,24 +651,27 @@ const ExploreComponent = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
-        setAllUsers(response.data);
+        const response = await axios.get('/db.json');
+        setAllUsers(response.data.users || []);
       } catch (err) {
         setError('Failed to fetch users');
       } finally {
         setLoading(false);
       }
     };
-
     fetchUsers();
   }, []);
 
-  const getUserById = (userId) => {
-    return allUsers.find((user) => user.id === userId) || { nickname: 'Unknown User'};
-  };
 
-  const [bookmarks, setBookmarks] = useState({});
-  const [likedPosts, setLikedPosts] = useState({});
+  // Function to get user by ID
+  const getUserById = (userId) => {
+    console.log('Searching for user with ID:', userId);
+    const user = allUsers.find(user => user.id === userId);
+    if (!user) {
+      console.error('User not found for ID:', userId);
+    }
+    return user || { nickname: 'Unknown User' };
+  };
 
   const handleToggleBookmark = (postId) => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -672,131 +680,99 @@ const ExploreComponent = () => {
       return;
     }
 
-    const currentUserNickname = storedUser.nickname;
     const currentUserId = storedUser.id;
-
     const post = allPosts.find(post => post.id === postId);
     if (!post) return;
 
-    const postOwnerId = post.userId;
+    const isBookmarked = likedPosts[postId];
+    const updatedLikedPosts = { ...likedPosts };
 
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[postOwnerId] || [];
+    if (isBookmarked) {
+      delete updatedLikedPosts[postId];
+    } else {
+      updatedLikedPosts[postId] = true;
 
-    setBookmarks(prevBookmarks => {
-      const updatedBookmarks = { ...prevBookmarks };
-      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
-
-      if (isBookmarked) {
-        // Remove from bookmarks
-        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
-      } else {
-        // Add to bookmarks
-        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
-
-        // Add notification
-        userNotifications.push({
-          senderNickname: currentUserNickname,
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          action: 'liked',
-          action2: 'your post:',
-          id: Date.now(),
-        });
-      }
-
-      // Update notifications in localStorage
-      storedNotifications[postOwnerId] = userNotifications;
-      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-
-      // Update bookmarks in localStorage
-      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
-
-      // Handle liking the post and updating likedPosts
-      setLikedPosts(prevLikedPosts => {
-        const updatedLikedPosts = { ...prevLikedPosts };
-
-        if (updatedLikedPosts[postId]) {
-          delete updatedLikedPosts[postId]; // Unliking the post
-        } else {
-          updatedLikedPosts[postId] = true; // Liking the post
-        }
-
-        // Update liked posts in localStorage
-        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
-        savedLiked[currentUserId] = updatedLikedPosts;
-        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
-
-        // Update the state
-        return updatedLikedPosts;
+      // Add notification logic
+      const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+      const userNotifications = storedNotifications[post.userId] || [];
+      userNotifications.push({
+        senderNickname: storedUser.nickname,
+        postText: post.text,
+        timestamp: new Date().toISOString(),
+        action: 'liked',
+        action2: 'your post:',
+        id: Date.now(),
       });
+      storedNotifications[post.userId] = userNotifications;
+      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+    }
 
-      return updatedBookmarks;
-    });
+    // Update localStorage
+    const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+    savedLikedPosts[currentUserId] = updatedLikedPosts;
+    localStorage.setItem('likedPosts', JSON.stringify(savedLikedPosts));
+
+    // Update state
+    setLikedPosts(updatedLikedPosts);
   };
 
-  // Load liked posts from localStorage when component mounts
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (storedUser && typeof storedUser === 'object') {
-      const currentUserId = storedUser.id;
-      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
-      setLikedPosts(savedLikedPosts[currentUserId] || {});
-    }
-  }, []);
-  const savedTheme = localStorage.getItem('color') || 'light';
+  const style = {
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
+  };
+
+  const postStyle = {
+    backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+    borderRadius: '5px',
+    border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+  };
+
+  const checkboxStyle = {
+    color: savedTheme === 'light' ? '#26374a' : '#a0b6cf',
+  };
 
   return (
-    <div style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>
-      <h1 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-3xl ">Explore</h1>
+    <div style={style}>
+      <h1 className="font-bold text-3xl">Explore</h1>
       {loading && <p>Loading users...</p>}
       {error && <p>{error}</p>}
       <div className="empty3 -mt-3"></div>
       {!loading && !error && allPosts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {allPosts.map((post) => {
             const user = getUserById(post.userId);
-
             return (
               <div
                 key={post.id}
                 className="post p-4 flex flex-col"
-                style={{
-                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-                  borderRadius: '5px',
-                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-                }}
+                style={postStyle}
               >
-                
                 <div className="flex justify-between gap-2 items-center -ml-2">
                   <div className="flex gap-2 items-center -mt-2 ml-1">
-                  {user.avatar && (
-                    <Avatar
-                      src={user.avatar}
-                      alt={`${user.nickname}'s avatar`}
-                      className="w-8 h-8 rounded-full"
-                      style={{ objectFit: 'cover' }}
-                    />
-                  )}
-                  <p style={{ color:savedTheme ==='light' ? '#26374a':'a0b6cf' }}>
-                    <b>{user.nickname}</b>
-                  </p>
+                    {user.avatar && (
+                      <Avatar
+                        src={user.avatar}
+                        alt={`${user.nickname}'s avatar`}
+                        className="w-8 h-8 rounded-full"
+                        style={{ objectFit: 'cover' }}
+                      />
+                    )}
+                    <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
+                      <b>{user.nickname}</b>
+                    </p>
                   </div>
                 </div>
-
-                
                 <div className="flex flex-col mt-4">
-                  <p ><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                  <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
                   <p>{post.text}</p>
                 </div>
-               <div className="mt-4">
-               <Checkbox
-            icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-            checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
-            onChange={() => handleToggleBookmark(post.id)}
-          />
-               </div>
+                <div className="mt-4">
+                  <Checkbox
+                    icon={<FavoriteBorder sx={checkboxStyle} />}
+                    checkedIcon={<Favorite sx={checkboxStyle} />}
+                    checked={!!likedPosts[post.id]}
+                    onChange={() => handleToggleBookmark(post.id)}
+                  />
+                </div>
               </div>
             );
           })}
@@ -812,11 +788,17 @@ const ExploreComponent = () => {
 
 
 
-const SearchPlusExplore =()=>{
+const SearchPlusExplore = () => {
   const [allPosts, setAllPosts] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [showUserProfile, setShowUserProfile] = useState(null);
+  const [userPosts, setUserPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const savedTheme = localStorage.getItem('color') || 'light';
 
   useEffect(() => {
     // Fetch posts from localStorage
@@ -827,96 +809,29 @@ const SearchPlusExplore =()=>{
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
-        setAllUsers(response.data);
+        const response = await axios.get('/db.json');
+        setAllUsers(response.data.users || []);
       } catch (err) {
         setError('Failed to fetch users');
       } finally {
         setLoading(false);
       }
     };
-
     fetchUsers();
   }, []);
 
-  const getUserById = (userId) => {
-    return allUsers.find((user) => user.id === userId) || { nickname: 'Unknown User'};
-  };
-
-  const [bookmarks, setBookmarks] = useState({});
-  const [likedPosts, setLikedPosts] = useState({});
-
-  const handleToggleBookmark = (postId) => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser || typeof storedUser !== 'object') {
-      console.error('Logged-in user data is invalid or missing');
-      return;
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredUsers([]);
+      setShowUserProfile(null);
+    } else {
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      setFilteredUsers(allUsers.filter(user =>
+        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+      ));
     }
+  }, [searchQuery, allUsers]);
 
-    const currentUserNickname = storedUser.nickname;
-    const currentUserId = storedUser.id;
-
-    const post = allPosts.find(post => post.id === postId);
-    if (!post) return;
-
-    const postOwnerId = post.userId;
-
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[postOwnerId] || [];
-
-    setBookmarks(prevBookmarks => {
-      const updatedBookmarks = { ...prevBookmarks };
-      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
-
-      if (isBookmarked) {
-        // Remove from bookmarks
-        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
-      } else {
-        // Add to bookmarks
-        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
-
-        // Add notification
-        userNotifications.push({
-          senderNickname: currentUserNickname,
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          action: 'liked',
-          action2: 'your post:',
-          id: Date.now(),
-        });
-      }
-
-      // Update notifications in localStorage
-      storedNotifications[postOwnerId] = userNotifications;
-      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-
-      // Update bookmarks in localStorage
-      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
-
-      // Handle liking the post and updating likedPosts
-      setLikedPosts(prevLikedPosts => {
-        const updatedLikedPosts = { ...prevLikedPosts };
-
-        if (updatedLikedPosts[postId]) {
-          delete updatedLikedPosts[postId]; // Unliking the post
-        } else {
-          updatedLikedPosts[postId] = true; // Liking the post
-        }
-
-        // Update liked posts in localStorage
-        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
-        savedLiked[currentUserId] = updatedLikedPosts;
-        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
-
-        // Update the state
-        return updatedLikedPosts;
-      });
-
-      return updatedBookmarks;
-    });
-  };
-
-  // Load liked posts from localStorage when component mounts
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (storedUser && typeof storedUser === 'object') {
@@ -925,73 +840,43 @@ const SearchPlusExplore =()=>{
       setLikedPosts(savedLikedPosts[currentUserId] || {});
     }
   }, []);
-  const savedTheme = localStorage.getItem('color') || 'light';
 
+  const handleToggleBookmark = (postId) => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser) return;
 
-  ////////
+    const currentUserId = storedUser.id;
+    const post = allPosts.find(post => post.id === postId);
+    if (!post) return;
 
+    const userNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
+    const notifications = userNotifications[post.userId] || [];
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  
-  const [userPosts, setUserPosts] = useState([]);
- 
-
-
-  const [showUserProfile,setShowUserProfile]=useState(null)
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        // Fetch users from backend or localStorage
-        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
-        setAllUsers(response.data);
-      } catch (err) {
-        setError('Failed to fetch users');
-      } finally {
-        setLoading(false);
+    setLikedPosts(prevLikedPosts => {
+      const updatedLikedPosts = { ...prevLikedPosts };
+      if (updatedLikedPosts[postId]) {
+        delete updatedLikedPosts[postId];
+      } else {
+        updatedLikedPosts[postId] = true;
+        notifications.push({
+          senderNickname: storedUser.nickname,
+          postText: post.text,
+          timestamp: new Date().toISOString(),
+          action: 'liked',
+          action2: 'your post:',
+          id: Date.now(),
+        });
       }
-    };
-    fetchUsers();
-  }, []);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(allUsers);
-    } else {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = allUsers.filter(user =>
-        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
-      );
-      setFilteredUsers(filtered);
-    }
-  }, [searchQuery, allUsers]);
-
-  const handleSearch = () => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(allUsers);
-    } else {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = allUsers.filter(user =>
-        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
-      );
-      setFilteredUsers(filtered);
-    }
+      localStorage.setItem('likedPosts', JSON.stringify({ [currentUserId]: updatedLikedPosts }));
+      localStorage.setItem('notifications', JSON.stringify({ ...userNotifications, [post.userId]: notifications }));
+      return updatedLikedPosts;
+    });
   };
 
-
-  const showUser = async  (user) => {
+  const showUser = (user) => {
     setShowUserProfile(user);
-
-    const allPosts = JSON.parse(localStorage.getItem('posts')) || [];
     const userPosts = allPosts.filter(post => post.userId === user.id);
-    try {
-      const response = await axios.get(`http://localhost:5000/posts?userId=${user.id}`); // Fetch posts by userId
-      setUserPosts(response.data);
-    } catch (err) {
-      setError('Failed to fetch user posts');
-    }
     setUserPosts(userPosts);
   };
 
@@ -1000,151 +885,130 @@ const SearchPlusExplore =()=>{
     setUserPosts([]);
   };
 
-
   const style = {
-   
-    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
- 
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
   };
 
   const style2 = {
-    backgroundColor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
-    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
-     border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-   borderRadius:'10px',
-   width:'400px'
- 
+    backgroundColor: savedTheme === 'light' ? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
+    border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+    borderRadius: '10px',
+    width: '400px',
   };
 
-  const adjustments = showUserProfile ? "justify-center items-stretch":"justify-center items-center"
+  const adjustments = showUserProfile ? "justify-center items-stretch" : "justify-center items-center";
 
-
-  return( 
+  return (
     <div>
-       <div className={`flex flex-col ${adjustments}`} style={style}>
-      {showUserProfile ? (
-        <ProfileUsers
-        allUsers={allUsers}
-        posts={userPosts}
-          user={showUserProfile}
-          onBack={handleBackToSearch}
-        />
-      ) : (
-        <>
-         <div className="">
-         <input
-            type="text"
-            placeholder="Search users..."
-            className="mt-8 lg:mt-0"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-              padding: '5px',
-              borderRadius: '5px',
-              border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-              width: '300px',
-            }}
+      <div className={`flex flex-col ${adjustments}`} style={style}>
+        {showUserProfile ? (
+          <ProfileUsers
+            allUsers={allUsers}
+            posts={userPosts}
+            user={showUserProfile}
+            onBack={handleBackToSearch}
           />
-         </div>
-         
-          <div>
-            {searchQuery.trim() === '' ? (
-              <div>
-                  <div style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>
-      {loading && <p>Loading users...</p>}
-      {error && <p>{error}</p>}
-      <div className="empty3 -mt-3"></div>
-      {!loading && !error && allPosts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-          {allPosts.map((post) => {
-            const user = getUserById(post.userId);
-
-            return (
-              <div
-                key={post.id}
-                className="post p-4 flex flex-col"
-                style={{
-                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-                  borderRadius: '5px',
-                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-                }}
-              >
-                
-                <div className="flex justify-between gap-2 items-center -ml-2">
-                  <div className="flex gap-2 items-center -mt-2 ml-1">
-                  {user.avatar && (
-                    <Avatar
-                      src={user.avatar}
-                      alt={`${user.nickname}'s avatar`}
-                      className="w-8 h-8 rounded-full"
-                      style={{ objectFit: 'cover' }}
-                    />
-                  )}
-                  <p style={{ color:savedTheme ==='light' ? '#26374a':'a0b6cf' }}>
-                    <b>{user.nickname}</b>
-                  </p>
+        ) : (
+          <>
+            <input
+              type="text"
+              placeholder="Search users..."
+              className="mt-8 lg:mt-0"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                padding: '5px',
+                borderRadius: '5px',
+                border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                width: '300px',
+              }}
+            />
+            <div>
+              {searchQuery.trim() === '' ? (
+                <>
+                  {loading && <p>Loading users...</p>}
+                  {error && <p>{error}</p>}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    {allPosts.map((post) => {
+                      const user = allUsers.find(user => user.id === post.userId) || { nickname: 'Unknown User' };
+                      return (
+                        <div
+                          key={post.id}
+                          className="post p-4 flex flex-col"
+                          style={{
+                            backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                            borderRadius: '5px',
+                            border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                          }}
+                        >
+                          <div className="flex justify-between gap-2 items-center -ml-2">
+                            <div className="flex gap-2 items-center -mt-2 ml-1">
+                              {user.avatar && (
+                                <Avatar
+                                  src={user.avatar}
+                                  alt={`${user.nickname}'s avatar`}
+                                  className="w-8 h-8 rounded-full"
+                                  style={{ objectFit: 'cover' }}
+                                />
+                              )}
+                              <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
+                                <b>{user.nickname}</b>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col mt-4">
+                            <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                            <p>{post.text}</p>
+                          </div>
+                          <div className="mt-4">
+                            <Checkbox
+                              icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                              checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                              checked={!!likedPosts[post.id]}
+                              onChange={() => handleToggleBookmark(post.id)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-
-                
-                <div className="flex flex-col mt-4">
-                  <p ><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
-                  <p>{post.text}</p>
-                </div>
-               <div className="mt-4">
-               <Checkbox
-            icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-            checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
-            onChange={() => handleToggleBookmark(post.id)}
-          />
-               </div>
-              </div>
-            );
-          })}
-          <div className="empty"></div>
-        </div>
-      ) : (
-        <p>No posts available.</p>
-      )}
-    </div>
-              </div> // Message displayed when there's no query
-            ) : filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
-                <div
-                  onClick={() => showUser(user)}
-                  className="usersSearch flex justify-between w-full items-center gap-3 mt-3 p-2"
-                  style={style2}
-                  key={user.id}
-                >
-                  <div className="flex gap-3" style={{zIndex:0}}>
-                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px',zIndex:0 }} />
-                  <div className="flex flex-col gap-2">
-                    <p className="font-semibold">{user.nickname}</p> {/* Displaying 'nickname' */}
-                    <p className="font-light text-sm">{user.description}</p> {/* Displaying 'description' */}
-                     
+                </>
+              ) : (
+                filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <div
+                      onClick={() => showUser(user)}
+                      className="usersSearch flex justify-between w-full items-center gap-3 mt-3 p-2"
+                      style={style2}
+                      key={user.id}
+                    >
+                      <div className="flex gap-3" style={{ zIndex: 0 }}>
+                        <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px', zIndex: 0 }} />
+                        <div className="flex flex-col gap-2">
+                          <p className="font-semibold">{user.nickname}</p>
+                          <p className="font-light text-sm">{user.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center mt-12">
+                    <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
+                      <PersonIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+                    </div>
+                    <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No users</p>
                   </div>
-                  </div>
-                  
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col  items-center justify-center mt-12">
-              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
-              </div>
-                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No users</p>
-              </div>// Message displayed when no users match the query
-            )}
-          </div>
-        </>
-      )}
+                )
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
- 
-    </div>
-  )
-}
+  );
+};
 
 
 
@@ -1216,33 +1080,38 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
       setLoading(true);
       try {
         // Fetch all users from the backend
-        const response = await axios.get('http://localhost:5000/users');
-        const allUsers = response.data;
-
+        const response = await axios.get('/db.json');
+        const allUsers = response.data.users; // Access the users array from the response
+    
         // Fetch stored friends from localStorage
         const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
         const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || !user.id) {
+          setError('No user data found.');
+          setLoading(false);
+          return;
+        }
         const userFriends = storedFriends[user.id] || [];
-
+    
         // Filter friends' details based on their IDs
-        const friendsDetails = allUsers.filter((user) =>
-          userFriends.includes(user.id)
+        const friendsDetails = allUsers.filter((u) =>
+          userFriends.includes(u.id)
         );
-
+    
         // Set the filtered friends data
         setFriendsData(friendsDetails);
       } catch (err) {
+        console.error('Error fetching users:', err); // Log the error
         setError('Failed to fetch users');
       } finally {
         setLoading(false);
       }
     };
-
-    if (friendsChecker) {
-      fetchUsersAndFriends();
-    }
-  }, [friendsChecker]);
-
+  
+    fetchUsersAndFriends(); // Call the function
+  
+  }, [friendsChecker]); // Dependency array
+  
 
   const handleRemovePost = (postId, userId) => {
     const updatedPosts = posts.filter(post => post.id !== postId || post.userId !== userId);
@@ -1312,6 +1181,7 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
       color:savedTheme==='light'?'#232629':'#fbfbfb',
     }}
     >Edit Profile</button>
+    <div className="block md:hidden">
     <Button
         id="basic-button"
         aria-controls={open1 ? 'basic-menu' : undefined}
@@ -1324,6 +1194,7 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
         <SettingsOutlinedIcon sx={{color:savedTheme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
 
       </Button>
+    </div>
       <Menu
         id="basic-menu"
         anchorEl={anchorEl}
@@ -1419,42 +1290,47 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
         }
         {friendsChecker && 
         <div>
-            <Modal
-              open={friendsChecker}
-              onClose={()=>setFriendsChecker(false)}
-            >
-              <Box sx={style}>
-            <h2 className="mb-6 font-bold text-2xl">Friends List</h2>
-            {loading ? (
-              <p>Loading...</p>
-            ) : error ? (
-              <p>{error}</p>
-            ) : friendsData.length > 0 ? (
-              friendsData.map((friend) => (
-                <div
-                  key={friend.id}
-                  className="flex gap-4 mb-4"
-                  style={{
-                    borderBottom: '1px solid #ccc',
-                    paddingBottom: '8px',
-                  }}
-                >
-                  <Avatar
-                    sx={{ width: '50px', height: '50px' }}
-                    alt={friend.nickname}
-                    src={friend.avatar || ''}
-                  />
-                  <div>
-                    <h3 className="font-semibold">{friend.nickname}</h3>
-                   {friend.description ? <p className="font-light text-sm">{friend.description}</p> :  <p className="font-light">No description yet</p>}
-                  </div>
-                </div>
-              ))
+         <Modal
+  open={friendsChecker}
+  onClose={() => setFriendsChecker(false)}
+>
+  <Box sx={style}>
+    <h2 className="mb-6 font-bold text-2xl">Friends List</h2>
+    {loading ? (
+      <p>Loading...</p>
+    ) : error ? (
+      <p>{error}</p>
+    ) : friendsData.length > 0 ? (
+      friendsData.map((friend) => (
+        <div
+          key={friend.id}
+          className="flex gap-4 mb-4"
+          style={{
+            borderBottom: '1px solid #ccc',
+            paddingBottom: '8px',
+          }}
+        >
+          <Avatar
+            sx={{ width: '50px', height: '50px' }}
+            alt={friend.nickname}
+            src={friend.avatar || ''}
+          />
+          <div>
+            <h3 className="font-semibold">{friend.nickname}</h3>
+            {friend.description ? (
+              <p className="font-light text-sm">{friend.description}</p>
             ) : (
-              <p>No friends found.</p>
+              <p className="font-light">No description yet</p>
             )}
-          </Box>
-            </Modal>
+          </div>
+        </div>
+      ))
+    ) : (
+      <p>No friends found.</p>
+    )}
+  </Box>
+</Modal>
+
         </div>
         }
    </div>
@@ -1469,16 +1345,14 @@ const Search = () => {
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const [showUserProfile,setShowUserProfile]=useState(null)
+  const [showUserProfile, setShowUserProfile] = useState(null);
 
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        // Fetch users from backend or localStorage
-        const response = await axios.get('http://localhost:5000/users'); // Adjust URL as needed
-        setAllUsers(response.data);
+        const response = await axios.get('/db.json'); // Adjust URL as needed
+        setAllUsers(response.data.users || []);
       } catch (err) {
         setError('Failed to fetch users');
       } finally {
@@ -1500,31 +1374,18 @@ const Search = () => {
     }
   }, [searchQuery, allUsers]);
 
-  const handleSearch = () => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(allUsers);
-    } else {
-      const lowerCaseQuery = searchQuery.toLowerCase();
-      const filtered = allUsers.filter(user =>
-        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
-      );
-      setFilteredUsers(filtered);
-    }
-  };
-
-
-  const showUser = async  (user) => {
+  const showUser = async (user) => {
     setShowUserProfile(user);
-
-    const allPosts = JSON.parse(localStorage.getItem('posts')) || [];
-    const userPosts = allPosts.filter(post => post.userId === user.id);
+    
     try {
-      const response = await axios.get(`http://localhost:5000/posts?userId=${user.id}`); // Fetch posts by userId
-      setUserPosts(response.data);
+      // Assuming posts are also part of the JSON file
+      const response = await axios.get('/db.json');
+      const allPosts = response.data.posts || []; // Adjust according to your JSON structure
+      const userPosts = allPosts.filter(post => post.userId === user.id);
+      setUserPosts(userPosts);
     } catch (err) {
       setError('Failed to fetch user posts');
     }
-    setUserPosts(userPosts);
   };
 
   const handleBackToSearch = () => {
@@ -1535,28 +1396,25 @@ const Search = () => {
   const savedTheme = localStorage.getItem('color') || 'light';
 
   const style = {
-   
-    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
- 
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
   };
 
   const style2 = {
-    backgroundColor: savedTheme ==='light'? '#fbfbfb' : 'rgb(35, 38, 41)',
-    color: savedTheme ==='light'? '#232629' : '#fbfbfb',
-     border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-   borderRadius:'10px',
-   width:'300px'
- 
+    backgroundColor: savedTheme === 'light' ? '#fbfbfb' : 'rgb(35, 38, 41)',
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
+    border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+    borderRadius: '10px',
+    width: '300px',
   };
 
-  const adjustments = showUserProfile ? "justify-center items-stretch":"justify-center items-center"
+  const adjustments = showUserProfile ? "justify-center items-stretch" : "justify-center items-center";
 
   return (
     <div className={`flex flex-col ${adjustments}`} style={style}>
       {showUserProfile ? (
         <ProfileUsers
-        allUsers={allUsers}
-        posts={userPosts}
+          allUsers={allUsers}
+          posts={userPosts}
           user={showUserProfile}
           onBack={handleBackToSearch}
         />
@@ -1574,18 +1432,18 @@ const Search = () => {
               borderRadius: '5px',
               border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
               width: '300px',
-              marginBottom:'10px'
+              marginBottom: '10px'
             }}
           />
-         
+
           <div>
             {searchQuery.trim() === '' ? (
-              <div className="flex flex-col  items-center justify-center mt-12">
-              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+              <div className="flex flex-col items-center justify-center mt-12">
+                <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
+                  <PersonIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+                </div>
+                <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No Searched user yet</p>
               </div>
-                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No Searched user yet</p>
-              </div> // Message displayed when there's no query
             ) : filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
                 <div
@@ -1594,24 +1452,22 @@ const Search = () => {
                   style={style2}
                   key={user.id}
                 >
-                  <div className="flex gap-3" style={{zIndex:0}}>
-                  <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px',zIndex:0 }} />
-                  <div className="flex flex-col gap-2">
-                    <p className="font-semibold">{user.nickname}</p> {/* Displaying 'nickname' */}
-                    <p className="font-light text-sm">{user.description}</p> {/* Displaying 'description' */}
-                     
+                  <div className="flex gap-3" style={{ zIndex: 0 }}>
+                    <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px', zIndex: 0 }} />
+                    <div className="flex flex-col gap-2">
+                      <p className="font-semibold">{user.nickname}</p>
+                      <p className="font-light text-sm">{user.description}</p>
+                    </div>
                   </div>
-                  </div>
-                  
                 </div>
               ))
             ) : (
-              <div className="flex flex-col  items-center justify-center mt-12">
-              <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-              <PersonIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+              <div className="flex flex-col items-center justify-center mt-12">
+                <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
+                  <PersonIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+                </div>
+                <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No users</p>
               </div>
-                <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No users</p>
-              </div>// Message displayed when no users match the query
             )}
           </div>
         </>
@@ -1619,6 +1475,7 @@ const Search = () => {
     </div>
   );
 };
+
 
 
 
@@ -1856,7 +1713,10 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   };
 
 
-  
+  const isUserOnline = (userId) => {
+    const onlineStatus = JSON.parse(localStorage.getItem('onlineStatus'));
+    return onlineStatus && onlineStatus.userId === userId && onlineStatus.online;
+  }; //// online status if the user is online 
 
 
   const style = {
@@ -1922,12 +1782,27 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
      </button>
      <div className="flex gap-6 w-full ">
        <div className="h-fit flex ">
-       <div className="hidden md:block"><Avatar  sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} /></div>
-       <div className="block md:hidden"><Avatar className="block md:hidden" sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} /></div>
+       <div className="hidden md:block">
+        <Avatar  sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
+         {isUserOnline(user.id) ? <Tooltip title="Online"><span className="11 absolute flex w-8 h-8 rounded-full ml-24 -mt-8"
+         style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         ></span></Tooltip> : <Tooltip title="Offline"><span className="11 absolute flex items-center w-8 h-8 rounded-full ml-24 -mt-8"
+         style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
+        </div>
+       <div className="block md:hidden">
+        <Avatar className="block md:hidden" sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} />
+        {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 absolute flex w-6 h-6 rounded-full ml-14 -mt-5"
+         style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         ></span></Tooltip> : <Tooltip title="Offline"><span className="22 absolute flex items-center w-6 h-6 rounded-full ml-14 -mt-5"
+         style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
+        </div>
        </div>
        <div className="flex flex-col gap-3 w-full">
          <div className="flex gap-3">
            <h1 className="font-medium text-xl">{user.nickname}</h1>
+          
          </div>
          <div className="flex items-center gap-6">
            <p>{posts.length} <b className="font-semibold ml-1">posts</b> </p>
@@ -1936,7 +1811,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
          <p>{user.description}</p>
          <div className="flex gap-4 mt-4 -ml-20 md:-ml-0">
          {friendStatus === 'Add Friend' && (
-             <button  style={{color: savedTheme === 'light' ? '#26374a' : '#a0b6cf',backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
+             <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
                Add Friend
              </button>
            )}
@@ -2286,7 +2161,7 @@ const Notifications = ({ user }) => {
           {notifications.map((notification) => (
             <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
               <p className="font-normal text-sm" key={notification.id}>
-                <strong  style={{ color: savedTheme === 'light' ? '#7e9cbe' : '#c2d0e0' }} className="font-semibold text-sm md:text-base">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
+                <strong  style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} className="font-semibold text-sm md:text-base">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
               </p>
               {notification.action === 'Sent a friend request' ? (
                 <>
@@ -2376,7 +2251,7 @@ const EditProfile = ({ handleGoBack }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
 
     try {
-      await axios.put(`http://localhost:5000/users/${user.id}`, updatedUser);
+      await axios.put(`/db.json/users/${user.id}`, updatedUser);
       setSavedChangesMessage(true);
       setTimeout(() => {
         setSavedChangesMessage(false);

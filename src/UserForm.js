@@ -19,6 +19,7 @@ const UserForm = ({ }) => {
   const [loading, setLoading] = useState(false);
   const [isVisible,setIsVisible]=useState(false)
 
+
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);
@@ -32,11 +33,12 @@ const UserForm = ({ }) => {
   
 
   const fetchUsers = async () => {
-    const { data } = await axios.get('http://localhost:5000/users');
-    return data;
+    const { data } = await axios.get('/db.json');
+    return data.users || [];
   };
 
-  const { data: users, error: usersError, isLoading } = useQuery('users', fetchUsers);
+  const { data: users = [], error: usersError, isLoading } = useQuery('users', fetchUsers);
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -48,22 +50,24 @@ const UserForm = ({ }) => {
   
     if (isLoading) return;
   
-    const user = users.find((user) => user.nickname === nickname && user.password === password);
+    // Ensure 'users' is an array
+    const user = Array.isArray(users) ? users.find((user) => user.nickname === nickname && user.password === password) : null;
     localStorage.setItem('user', JSON.stringify(user));
     
     if (user) {
       setLoading(true);
-      Cookies.set('isAuthenticated', 'true',{ expires: 10 });
-      localStorage.setItem('user', JSON.stringify(user));
+      Cookies.set('isAuthenticated', 'true', { expires: 10 });
+      localStorage.setItem('onlineStatus', JSON.stringify({ userId: user.id, online: true }));
       setTimeout(() => {
         setLoading(false);    
-          navigate('/main');
+        navigate('/main');
       }, 2000); // Simulate loading for 2 seconds
     } else {
       setError('Invalid username or password');
       setOpen(true);
     }
   };
+  
   
 
 const savedTheme = localStorage.getItem('color') || 'light';

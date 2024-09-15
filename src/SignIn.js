@@ -72,7 +72,7 @@ const SignIn = () => {
   
     const AddUser = async (user) => {
       try {
-        const response = await axios.post('http://localhost:5000/users', user);
+        const response = await axios.post('/db.json', user);
         return response.data;
       } catch (err) {
         if (err.response && err.response.status === 409) {
@@ -97,7 +97,7 @@ const SignIn = () => {
     const navigate = useNavigate();
   
     const mutation = useMutation((newUser) => {
-      return axios.post('http://localhost:5000/users', newUser);
+      return axios.post('/db.json', newUser);
     });
   
     const handleSubmit = (e) => {

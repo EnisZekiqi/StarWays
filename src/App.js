@@ -6,7 +6,7 @@ import { useEffect,useState } from 'react';
 import Cookies from 'js-cookie';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import UserForm from './UserForm';
-import UserList from './UserList';
+
 import Example from './Example';
 import Selected from './Selected';
 import ExamplePt2 from './ExamplePt2';
@@ -140,7 +140,7 @@ localStorage.setItem('gender',selectedGender)
       <Home/>
         <p>{text}</p>
         
-        <UserList  theme={theme}  />
+     
 
         <div>
           {selected ? 
