@@ -21,7 +21,7 @@ body{
 }
 
 
-.empty{
+.ty{
   height: 150px;
 }
 .empty2{
@@ -131,3 +131,20 @@ border:1px solid #a0b6cf ;
 .switch{
   color:#a0b6cf
 }
+.loginIcon {
+  filter: drop-shadow(0 0 25px rgba(160, 182, 207, 0.75));
+}
+
+
+.glowWrapper {
+  display: inline-block;
+  padding:5px; /* Adjust padding if necessary */
+  background-color: transparent;
+/* To create a circular glow around the icon */
+  box-shadow: 0 0 20px rgba(160, 182, 207, 0.8), 0 0 40px rgba(160, 182, 207, 0.6), 0 0 60px rgba(160, 182, 207, 1);
+}
+
+.glowWrapper:hover {
+  box-shadow: 0 0 40px rgba(160, 182, 207, 1), 0 0 60px rgba(160, 182, 207, 1), 0 0 80px rgba(160, 182, 207, 1); /* Intensify the glow on hover */
+}
+

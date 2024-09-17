@@ -231,6 +231,9 @@ useEffect(() => {
               transition={{ duration: 3 }}
             />
             <motion.path
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 3 }}
               d="M896 384c0 35.2-28.8 64-64 64s-64-28.8-64-64 28.8-64 64-64 64 28.8 64 64z m-656-32c-62.4 0-112-49.6-112-112s49.6-112 112-112 112 49.6 112 112-49.6 112-112 112z m304 336c-80 0-144-64-144-144s64-144 144-144 144 64 144 144-64 144-144 144z m-224 144c0-35.2 28.8-64 64-64s64 28.8 64 64-28.8 64-64 64-64-28.8-64-64z m-144-176c0-17.6 14.4-32 32-32s32 14.4 32 32-14.4 32-32 32-32-14.4-32-32z m448-440c0-22.4 17.6-40 40-40s40 17.6 40 40-17.6 40-40 40-40-17.6-40-40zM736 560c0-27.2 20.8-48 48-48s48 20.8 48 48-20.8 48-48 48-48-20.8-48-48z"
               fill={svgFillColor}
             />
@@ -662,6 +665,15 @@ const ExploreComponent = () => {
     fetchUsers();
   }, []);
 
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setLikedPosts(savedLikedPosts[currentUserId] || {});
+    }
+  }, []);
 
   // Function to get user by ID
   const getUserById = (userId) => {

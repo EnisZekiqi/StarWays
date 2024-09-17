@@ -12,6 +12,7 @@ import Selected from './Selected';
 import ExamplePt2 from './ExamplePt2';
 import ExamplePt3 from './ExamplePt3';
 import Home from './Home';
+import Home2 from './Home2';
 import { Tranquiluxe } from 'uvcanvas';
 import Navbar from './Navbar';
 
@@ -136,33 +137,10 @@ localStorage.setItem('gender',selectedGender)
       <QueryClientProvider client={queryClient}>
       <div style={styles.app} className="App">
       <Navbar theme={theme} updateTheme={updateTheme}/>
-      <div className="empty"/>
+      <div className="empty3"/>
       <Home/>
-        <p>{text}</p>
-        
-     
-
-        <div>
-          {selected ? 
-        <Selected  item={selected} handleBack={handleBack} />  :
-        <div>
-           {array.map((item, index) => (
-              <div onClick={()=>handleClickShow(item)} className='flex cursor-pointer' key={index}>
-                <p>{item.name}</p>
-                <p>{item.surname}</p>
-              </div>
-            ))}
-        </div>
-        }
-        <div>
-        <h2>Selected Number: {savedNumber}</h2>
-        <h2>Selected option: {option}</h2>
-        <h2>{ChoosenGender}</h2>
-        <ExamplePt3 toggleTheGender={toggleTheGender}/>
-        <ExamplePt2 toggleChoosenNumber={toggleChoosenNumber} toggleChoosenSlider={toggleChoosenSlider}/>
-        </div>
-        </div>
-      
+      <Home2/>
+      <div className="empty"></div>
       </div>
     </QueryClientProvider>
     </div>
