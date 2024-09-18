@@ -42,10 +42,10 @@ const Home = () => {
                     style={{background: savedTheme === 'light'
                         ? 'linear-gradient(to bottom, #26374a 0%, rgba(38, 55, 74, 0.2) 100%)'
                         : 'linear-gradient(to bottom, #a0b6cf 0%, rgba(160, 182, 207, 0.1) 80%)',
-                      
+                        filter: 'blur(0.5px)'
                     }}
                     /> 
-                <LoginIcon className="loginIcon" sx={{ marginLeft: '-27px', marginTop: '15px', color: '#a0b6cf',scale:'1.3',
+                <LoginIcon className="loginIcon" sx={{ marginLeft: '-27px', marginTop: '15px',  color:savedTheme === 'light'? '#26374a':'#a0b6cf',scale:'1.3',
                     filter: 'drop-shadow(0px 0px 6px #a0b6cf)'
                 }} />
                 <div className="starterLine h-48 w-1 -ml-3.5 mt-3.5 rounded-t-sm"
@@ -65,10 +65,8 @@ const Home = () => {
                 </div>
                
               </div>
-              <div className="flex flex-col">
-              <InfoIcon className="loginIcon" sx={{ marginLeft: '-25px', marginTop: '-20px', color: '#a0b6cf',scale:'1.3',
-                    filter: 'drop-shadow(0px 0px 6px #a0b6cf)'
-                }}/>
+              <div className="">
+             
                
               </div>
             </div>
