@@ -1,11 +1,33 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
+html {
+  scroll-behavior: smooth;
+}
 body{
   
   font-family: "Inter", sans-serif;
 }
+:root {
+  --bg-color-light: #eff0f1;
+  --bg-color-dark: #18191b;
+  --background-image-light: url('/src/images/magicpattern-starry-night-1726781255005.png');
+  --background-image-dark: url('/src/images/magicpattern-starry-night-1726781065678.png');
+  background-size: cover;
+  background-position: center;
+}
 
+.theme-light {
+  background-color: var(--bg-color-light);
+  color: var(--text-color-light);
+  background-image: var(--background-image-light);
+}
+
+.theme-dark {
+  background-color: var(--bg-color-dark);
+  color: var(--text-color-dark);
+  background-image: var(--background-image-dark);
+}
 
 .wrapper2{
   color:#26374a;
@@ -20,7 +42,22 @@ body{
   }
 }
 
-
+.globi{
+  width:326px;
+  height:326px;
+}
+@media (max-width:1024px) {
+  .globi{
+    width:306px !important;
+    height:306px !important;
+  }
+}
+@media (max-width:325px) {
+  .globi{
+    width:290px !important;
+    height:290px !important;
+  }
+}
 .ty{
   height: 150px;
 }

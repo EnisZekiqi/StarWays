@@ -15,8 +15,9 @@ import Home from './Home';
 import Home2 from './Home2';
 import { Tranquiluxe } from 'uvcanvas';
 import Navbar from './Navbar';
-
-
+import stars from './images/magicpattern-starry-night-1726780801258.png'
+import starsDark from './images/magicpattern-starry-night-1726781065678.png'
+import startLight from './images/magicpattern-starry-night-1726781255005.png'
 function App() {
 
   const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ useEffect(() => {
       backgroundColor: theme === 'light' ? '#eff0f1' : '#18191b',
       color: theme === 'light' ? '#000000' : '#ffffff',
       minHeight: '100vh',
+      backgroundImage:theme ==='light'? startLight:starsDark
     
     },
   };
@@ -135,7 +137,7 @@ localStorage.setItem('gender',selectedGender)
   return (
     <div className='App'>
       <QueryClientProvider client={queryClient}>
-      <div style={styles.app} className="App">
+      <div className={`App ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} style={styles.app}>
       <Navbar theme={theme} updateTheme={updateTheme}/>
       <div className="empty3"/>
       <Home/>
