@@ -33,38 +33,43 @@ const UserForm = ({ }) => {
   
 
   const fetchUsers = async () => {
-    const { data } = await axios.get('/db.json');
-    return data.users || [];
+    const { data } = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+      headers: {
+        'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+      }
+    });
+    return data.record.users || [];
   };
-
-  const { data: users = [], error: usersError, isLoading } = useQuery('users', fetchUsers);
-
-
-  const handleSubmit = (e) => {
+  
+  const handleLogin = async (e) => {
     e.preventDefault();
   
-    if (nickname.trim() === '' || password.trim() === '') {
-      setError('Fill out the empty fields');
-      return;
-    }
+    try {
+      // Fetch users from jsonbin.io
+      const { data } = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        headers: {
+          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq' // Replace with your actual key
+        }
+      });
   
-    if (isLoading) return;
+      const users = data.record.users;
+      const user = users.find((u) => u.nickname === nickname && u.password === password);
   
-    // Ensure 'users' is an array
-    const user = Array.isArray(users) ? users.find((user) => user.nickname === nickname && user.password === password) : null;
-    localStorage.setItem('user', JSON.stringify(user));
-    
-    if (user) {
-      setLoading(true);
-      Cookies.set('isAuthenticated', 'true', { expires: 10 });
-      localStorage.setItem('onlineStatus', JSON.stringify({ userId: user.id, online: true }));
-      setTimeout(() => {
-        setLoading(false);    
-        navigate('/main');
-      }, 2000); // Simulate loading for 2 seconds
-    } else {
-      setError('Invalid username or password');
-      setOpen(true);
+      if (user) {
+        setLoading(true);
+        Cookies.set('isAuthenticated', 'true', { expires: 10 });
+        localStorage.setItem('onlineStatus', JSON.stringify({ userId: user.id, online: true }));
+        localStorage.setItem('user', JSON.stringify(user));
+        setTimeout(() => {
+          navigate('/main');
+        }, 2000);
+      } else {
+        setError('Invalid username or password');
+      }
+  
+    } catch (error) {
+      console.error('Error during login:', error);
+      setError('Failed to login');
     }
   };
   
@@ -107,8 +112,8 @@ const styles = {
 
   return (
    
-    <div>
-        <form className='flex flex-col items-center' style={styles.form} onSubmit={handleSubmit}>
+    <div className=''>
+        <form className='flex flex-col items-center' style={styles.form} onSubmit={handleLogin}>
        
       <div className='w-full'>
        
@@ -154,6 +159,7 @@ const styles = {
         onClose={() => setOpen(false)}
         message={userError ? 'This username already exists' : error}
       />
+      <div className="empty"></div>
     </div>
   );
 };

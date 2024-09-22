@@ -5,6 +5,16 @@ import LoginIcon from '@mui/icons-material/Login';
 import InfoIcon from '@mui/icons-material/Info';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
+import useMeasure from "react-use-measure"
+import {
+  useDragControls,
+  useMotionValue,
+  useAnimate,
+  motion,
+} from "framer-motion";
+
+
+
 const Home = () => {
 
     const savedTheme = localStorage.getItem('color') || 'light';
@@ -24,6 +34,8 @@ const Home = () => {
       };
 
 const [logInModal,setLogInModal] =useState(false)
+
+const [open, setOpen] = useState(false);
 
     return ( 
         <div>
@@ -51,7 +63,7 @@ const [logInModal,setLogInModal] =useState(false)
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-7xl font-bold lg:font-extrabold mt-2 text-center lg:text-start"
                     style={{color:savedTheme === 'light'?'rgb(35, 38, 41)':'rgb(251, 251, 251)'}}
                     >Welcome to the Newest Platform <b className="vv"
-                    style={{color:savedTheme==='light'?'#7e7ebe':"#c2c2e0"}}
+                    style={{color:savedTheme==='light'?'#7e9cbe':"#c2d0e0"}}
                     >StarWays</b></h1>
                     </div>
                 </div>
@@ -85,9 +97,14 @@ const [logInModal,setLogInModal] =useState(false)
                    <UserForm/>
                 </div>
                 <div className="flex w-full items-center gap-3 justify-center md:hidden">
-                    <button onClick={()=>setLogInModal(true)} className="rounded-md p-1.5 text-sm font-semibold"
-                    style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
-                    >Log In</button>
+                <button
+        onClick={() => setOpen(true)}
+        className="rounded p-1 text-lg font-medium"
+        style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
+      >
+       Log In
+      </button>
+
                     <button className="rounded-md p-1.5 text-sm font-semibold"
                     style={{color:savedTheme === 'light'?'#26374a':'#a0b6cf'}}
                     >Learn more</button>
@@ -95,15 +112,16 @@ const [logInModal,setLogInModal] =useState(false)
                
               </div>
               <div className="">
-              <Modal
-  open={logInModal}
-  onClose={() => setLogInModal(false)}
->
-  <Box sx={style}>
-    <h2 className="mb-6 font-bold text-2xl">Log In</h2>
-    <UserForm/>
-  </Box>
-</Modal>
+              <DragCloseDrawer open={open} setOpen={setOpen}>
+              <div className="mx-auto max-w-2xl space-y-4 text-neutral-400">
+          <h2 className="text-4xl font-bold text-neutral-200"
+          style={{color:savedTheme === 'light'?'rgb(35, 38, 41)':'rgb(251, 251, 251)'}}
+          >
+           Log In
+          </h2>
+          <UserForm/>
+        </div>
+      </DragCloseDrawer>
                
               </div>
             </div>
@@ -114,4 +132,110 @@ const [logInModal,setLogInModal] =useState(false)
      );
 }
  
+
+const DragCloseDrawerExample = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid h-screen place-content-center bg-neutral-950">
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded bg-indigo-500 px-4 py-2 text-white transition-colors hover:bg-indigo-600"
+      >
+        Open drawer
+      </button>
+
+      <DragCloseDrawer open={open} setOpen={setOpen}>
+        <div className="mx-auto max-w-2xl space-y-4 text-neutral-400">
+          <h2 className="text-4xl font-bold text-neutral-200">
+           Log In
+          </h2>
+          <UserForm/>
+        </div>
+      </DragCloseDrawer>
+    </div>
+  );
+};
+
+const DragCloseDrawer = ({ open, setOpen, children }) => {
+  const savedTheme = localStorage.getItem('color') || 'light';
+  const [scope, animate] = useAnimate();
+  const [drawerRef, { height }] = useMeasure();
+
+  const y = useMotionValue(0);
+  const controls = useDragControls();
+
+  const handleClose = async () => {
+    animate(scope.current, {
+      opacity: [1, 0],
+    });
+
+    const yStart = typeof y.get() === "number" ? y.get() : 0;
+
+    await animate("#drawer", {
+      y: [yStart, height],
+    });
+
+    setOpen(false);
+  };
+
+  return (
+    <>
+      {open && (
+        <motion.div
+          ref={scope}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={handleClose}
+          className="fixed inset-0 z-50 bg-neutral-950/70"
+         
+        >
+          <motion.div
+            id="drawer"
+            ref={drawerRef}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ y: "100%" }}
+            animate={{ y: "0%" }}
+            transition={{
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-0 h-[75vh] w-full overflow-hidden rounded-t-3xl bg-neutral-900"
+            
+            style={{ y, backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629', }}
+            drag="y"
+            dragControls={controls}
+            onDragEnd={() => {
+              if (y.get() >= 100) {
+                handleClose();
+              }
+            }}
+            dragListener={false}
+            dragConstraints={{
+              top: 0,
+              bottom: 0,
+            }}
+            dragElastic={{
+              top: 0,
+              bottom: 0.5,
+            }}
+          >
+            <div className="absolute left-0 right-0 top-0 z-10 flex justify-center bg-neutral-900 p-4"
+            style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629',}}
+            >
+              <button
+                onPointerDown={(e) => {
+                  controls.start(e);
+                }}
+                className="h-2 w-14 cursor-grab touch-none rounded-full bg-neutral-700 active:cursor-grabbing"
+              ></button>
+            </div>
+            <div className="relative z-0 h-full  p-4 pt-12">
+              {children}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </>
+  );
+};
+
 export default Home;

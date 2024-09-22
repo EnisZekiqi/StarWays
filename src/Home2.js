@@ -14,14 +14,39 @@ import { GrEdit } from "react-icons/gr";
 import { GrFastForward } from "react-icons/gr";
 import { TiGroup } from "react-icons/ti";
 import { motion,AnimatePresence } from "framer-motion";
+import grid4 from './images/grid4.png'
+import grid3 from './images/grid3.png'
+import copy from './images/copy.svg'
+import tick from './images/tick.svg'
 ///Rating imports
 import Rating from '@mui/material/Rating';
+import Snackbar from '@mui/material/Snackbar';
+import SnackbarContent from '@mui/material/SnackbarContent';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 const Home = () => {
     const [hasCopied, setHasCopied] = useState(false);
-    const [value, setValue] =useState(0);
+    const [rateMessage,setRateMessage]=useState(false)
+    const [value, setValue] = useState(() => {
+        // Retrieve initial rating from localStorage or default to 0 if none exists
+        const savedValue = localStorage.getItem('rate');
+        return savedValue ? JSON.parse(savedValue) : 0;
+      });
+      
+      useEffect(() => {
+        // Store the updated rating in localStorage whenever `value` changes
+        const hasShownMessage = localStorage.getItem('hasShownRateMessage');
 
+  if (!hasShownMessage) {
+    // If the message has never been shown, show it once and mark it in localStorage
+    setRateMessage(true);
+    setTimeout(() => {
+      setRateMessage(false);
+      // After showing the message once, prevent it from showing again
+      localStorage.setItem('hasShownRateMessage', 'true');
+    }, 3000);
+  }
+      }, [value]);
 
     const handleCopy = () => {
       navigator.clipboard.writeText(' adrian@jsmastery.pro');
@@ -58,9 +83,9 @@ const Home = () => {
 
             <div>
               <div className="flex flex-col gap-3">
-              <p className="grid-headtext font-semibold text-xl ">Hi, I’m Enis Zekiqi</p>
-              <p className="grid-subtext" style={{color:savedTheme === 'light'?'#5e666e':'#d6d9dc'}}>
-                Founder of the StarWays with 12 years of experience of social media apps and with high skill in both programing and managing company
+              <p className="grid-headtext font-semibold text-xl "   style={{color:savedTheme ==='light'?'#232629':'#c2d0e0'}}>Create Profile , join the community</p>
+              <p className="grid-subtext font-light text-sm" style={{color:savedTheme === 'light'?'#848c95':'#9fa5ac'}}>
+                StarWays takes you closer to the world , to you friends and family , for that you need to <a href="/signin"> <b style={{color:savedTheme === 'light'?'#5e666e':'#d6d9dc'}}>Sign In</b></a>  and create an Account
               </p>
               </div>
             </div>
@@ -229,10 +254,10 @@ const Home = () => {
             </div>
             <div>
               <div className="flex flex-col gap-4">
-              <li className="grid-headtext text-center px-2">Our current location is in Vushtrri,Kosovo and we would like to expand more</li>
-              <li className="grid-subtext  text-center px-2">StarWays works for everyone and anywhere you are you have access to communicate</li>
+              <li style={{color:savedTheme === 'light'?'#848c95':'#9fa5ac'}} className="grid-headtext text-center px-2">Our current location is in Vushtrri,Kosovo and we would like to expand more</li>
+              <li style={{color:savedTheme === 'light'?'#848c95':'#9fa5ac'}} className="grid-subtext  text-center px-2">StarWays works for everyone and anywhere you are you have access to communicate</li>
               </div>
-              <div className="flex flex-col items-center justify-center mt-6">
+              <div className="flex flex-col items-center justify-center mt-6 mb-3">
               <h1 className="font-medium text-xl"
                 style={{color:savedTheme ==='light'?'#232629':'#c2d0e0'}}
                 >Rate Us</h1>
@@ -249,9 +274,9 @@ const Home = () => {
           </div>
         </div>
 
-        <div className="xl:col-span-2 xl:row-span-3">
+        <div className="xl:col-span-2 xl:row-span-3" style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629'}}>
           <div className="grid-container">
-            <img src="assets/grid3.png" alt="grid-3" className="w-full sm:h-[266px] h-fit object-contain" />
+            <img src={grid3} alt="grid-3" className="w-full sm:h-[266px] h-fit object-contain" />
 
             <div>
               <p className="grid-headtext">My Passion for Coding</p>
@@ -263,26 +288,38 @@ const Home = () => {
           </div>
         </div>
 
-        <div className="xl:col-span-1 xl:row-span-2">
+        <div className="xl:col-span-1 xl:row-span-2 rounded-md p-3"  style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629'}}>
           <div className="grid-container">
             <img
-              src="assets/grid4.png"
+              src={grid4}
               alt="grid-4"
-              className="w-full md:h-[126px] sm:h-[276px] h-fit object-cover sm:object-top"
+              className="w-full md:h-[150px] sm:h-[276px] h-fit object-cover sm:object-top"
             />
 
             <div className="space-y-2">
-              <p className="grid-subtext text-center">Contact me</p>
-              <div className="copy-container" onClick={handleCopy}>
-                <img src={hasCopied ? 'assets/tick.svg' : 'assets/copy.svg'} alt="copy" />
-                <p className="lg:text-2xl md:text-xl font-medium text-gray_gradient text-white">adrian@jsmastery.pro</p>
+             
+              <div className="copy-container flex justify-around items-center mt-0 md:mt-3 gap-2" onClick={handleCopy}>
+                <img src={hasCopied ?  tick : copy} alt="copy" />
+                <p className="lg:text-xl md:text-lg  text-gray_gradient font-light"
+                style={{color:savedTheme === 'light'?'#848c95':'#9fa5ac'}}
+                >Notify me for the next Update</p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </section>
-           
+    <Snackbar
+          open={rateMessage}
+          sx={{ backgroundColor: '#a0cfa0', color: '#264a26', borderRadius: 15 }}
+          autoHideDuration={6000}
+          onClose={() => setRateMessage(false)}
+        >
+          <SnackbarContent
+            sx={{ backgroundColor: '#a0cfa0', color: '#264a26', fontWeight: 500 }}
+            message="Thank you for your rating"
+          />
+        </Snackbar>
                    
                     <div className="empty opacity-0">1</div>
                     <div className="empty opacity-0">1</div>

@@ -91,6 +91,8 @@ const [messagesCount,setMessagesCount]=useState(0)
       const existingPosts = JSON.parse(localStorage.getItem('posts')) || [];
       const updatedPosts = [...existingPosts, newPost];
       localStorage.setItem('posts', JSON.stringify(updatedPosts));
+      
+      return newPost; // Return the new post
     };
 
     
@@ -161,6 +163,7 @@ useEffect(() => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
+        console.log('Loaded user data:', storedUser); 
       }
       const storedPosts = localStorage.getItem('posts');
       if (storedPosts) {
@@ -427,7 +430,7 @@ useEffect(() => {
       {/* Main content */}
       <div className="flow flex-1 overflow-y-auto mb-12 mt-6" style={{  padding: '16px' }}>
       {activeTab === 'profile' && !editProfile && (
-        <Profile updateTheme={updateTheme} user={user} posts={posts} setPosts={setPosts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
+        <Profile updateTheme={updateTheme} user={user} setUser={setUser} posts={posts} setPosts={setPosts}  handleGoBack={handleGoBack} toggleEdit={toggleEdit} />
       )}
       {editProfile && (
         <EditProfile handleGoBack={handleGoBack} />
@@ -474,23 +477,20 @@ const HomeComponent = () => {
           const friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
           setAllPosts(friendPosts);
 
-          // Fetch all users to get friend details
-          const response = await axios.get('/db.json');
-          const allUsers = response.data;
-
-          // Filter out only friends from the fetched users
-          const friendUsers = allUsers.filter(user => friendIds.includes(user.id));
-          setFriends(friendUsers);
-        } else {
-          setError('No friends found for this user.');
+          // Fetch all users to get friend details from jsonbin.io
+          const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+            headers: {
+              'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+            }
+          });
+          setFriends(response.data.record.users || []);
         }
       } catch (err) {
-        setError('Failed to fetch friends or posts.');
+        setError('Failed to fetch data');
       } finally {
         setLoading(false);
       }
     };
-
     fetchFriendPosts();
   }, []);
 
@@ -640,31 +640,50 @@ const HomeComponent = () => {
 const ExploreComponent = () => {
   const [allPosts, setAllPosts] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const[friends,setFriends]=useState([])
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [likedPosts, setLikedPosts] = useState({});
   const savedTheme = localStorage.getItem('color') || 'light';
 
   useEffect(() => {
-    // Fetch posts from localStorage
-    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
-    setAllPosts(storedPosts);
-
-    // Fetch users from backend
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('/db.json');
-        setAllUsers(response.data.users || []);
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+
+        // Fetch posts from localStorage
+        const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+
+        // Fetch all users to get friend details from jsonbin.io
+        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
+
+        setAllUsers(response.data.record.users || []);
+        setFriends(response.data.record.users || []); // Assuming all users are friends for now
+
+        // If the user has friends, filter friend posts
+        let friendPosts = [];
+        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
+          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
+          friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
+        }
+
+        // Set all posts
+        setAllPosts([...friendPosts, ...storedPosts]); // Combine friend posts with all posts
       } catch (err) {
-        setError('Failed to fetch users');
+        setError('Failed to fetch data');
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
-  }, []);
 
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -675,14 +694,9 @@ const ExploreComponent = () => {
     }
   }, []);
 
-  // Function to get user by ID
   const getUserById = (userId) => {
-    console.log('Searching for user with ID:', userId);
     const user = allUsers.find(user => user.id === userId);
-    if (!user) {
-      console.error('User not found for ID:', userId);
-    }
-    return user || { nickname: 'Unknown User' };
+    return user || { nickname: 'Unknown User' }; // Default to 'Unknown User' if not found
   };
 
   const handleToggleBookmark = (postId) => {
@@ -803,6 +817,7 @@ const ExploreComponent = () => {
 const SearchPlusExplore = () => {
   const [allPosts, setAllPosts] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const[friends,setFriends]=useState([])
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [showUserProfile, setShowUserProfile] = useState(null);
@@ -813,34 +828,67 @@ const SearchPlusExplore = () => {
   const savedTheme = localStorage.getItem('color') || 'light';
 
   useEffect(() => {
-    // Fetch posts from localStorage
-    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
-    setAllPosts(storedPosts);
-
-    // Fetch users from backend
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('/db.json');
-        setAllUsers(response.data.users || []);
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
+
+        // Fetch posts from localStorage
+        const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+
+        // Fetch all users to get friend details from jsonbin.io
+        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
+
+        setAllUsers(response.data.record.users || []);
+        setFriends(response.data.record.users || []); // Assuming all users are friends for now
+
+        // If the user has friends, filter friend posts
+        let friendPosts = [];
+        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
+          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
+          friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
+        }
+
+        // Set all posts
+        setAllPosts([...friendPosts, ...storedPosts]); // Combine friend posts with all posts
       } catch (err) {
-        setError('Failed to fetch users');
+        setError('Failed to fetch data');
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+
+    fetchData();
   }, []);
 
   useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setLikedPosts(savedLikedPosts[currentUserId] || {});
+    }
+  }, []);
+
+  const getUserById = (userId) => {
+    const user = allUsers.find(user => user.id === userId);
+    return user || { nickname: 'Unknown User' }; // Default to 'Unknown User' if not found
+  };
+
+  useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredUsers([]);
-      setShowUserProfile(null);
+      setFilteredUsers(allUsers);
     } else {
       const lowerCaseQuery = searchQuery.toLowerCase();
-      setFilteredUsers(allUsers.filter(user =>
+      const filtered = allUsers.filter(user =>
         user.nickname.toLowerCase().startsWith(lowerCaseQuery)
-      ));
+      );
+      setFilteredUsers(filtered);
     }
   }, [searchQuery, allUsers]);
 
@@ -1000,7 +1048,7 @@ const SearchPlusExplore = () => {
                         <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px', zIndex: 0 }} />
                         <div className="flex flex-col gap-2">
                           <p className="font-semibold">{user.nickname}</p>
-                          <p className="font-light text-sm">{user.description}</p>
+                          <p className="font-light text-sm" style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
                         </div>
                       </div>
                     </div>
@@ -1024,17 +1072,17 @@ const SearchPlusExplore = () => {
 
 
 
-const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
+const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => {
+
   const [user, setUser] = useState(null);
+  const[allUsers,setAllUsers]=useState([])
   const [password, setPassword] = useState('');
-  const [theme,setTheme]=useState('light')
-  const [editProfile,setEditProfile]=useState(false)
-
-  const [selected,setSelected]=useState(null) //// show specific post state 
+  const [theme, setTheme] = useState('light');
+  const [editProfile, setEditProfile] = useState(false);
+  const [selected, setSelected] = useState(null); // show specific post state 
   const [open, setOpen] = useState(false);
-  
   const [anchorEl, setAnchorEl] = useState(null);
-
+  
   const open1 = Boolean(anchorEl);
 
   const handleClick = (event) => {
@@ -1046,83 +1094,81 @@ const Profile =({handleGoBack,updateTheme,toggleEdit,posts,setPosts})=>{
   };
 
   const handleCloseLogOut = () => {
-      setAnchorEl(null);
-      Cookies.set('isAuthenticated', 'false')
-    };
+    setAnchorEl(null);
+    Cookies.set('isAuthenticated', 'false');
+  };
 
+  const handleClickShow = (post) => { // toggle the post 
+    setSelected(post);
+    setOpen(true);
+  };
 
-  const handleClickShow = (post)=>{      //// toggle the post 
-    setSelected(post)
-    setOpen(true)
-  }
-
-
-  const handleClosePost =()=>{    /// close post
-    setSelected(null)
-    setOpen(false)
-  }
+  const handleClosePost = () => { // close post
+    setSelected(null);
+    setOpen(false);
+  };
 
   const [friendCount, setFriendCount] = useState(0);
- 
 
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      setUser(storedUser); // Correctly set user from localStorage
+    }
+  }, []);
 
   useEffect(() => {
     if (user && user.id) {
-      // Only fetch the friend count if the user object and user.id are available
       setFriendCount(getFriendCount(user.id));
     }
   }, [user]);
-  
+
   const getFriendCount = (userId) => {
     const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
     const userFriends = storedFriends[userId] || [];
     return userFriends.length;
   };
 
-
-  
   const [friendsChecker, setFriendsChecker] = useState(false);
   const [friendsData, setFriendsData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Add the rest of your component logic here...
+
+ 
+
   // Fetch users and filter friends' data when the modal is open
   useEffect(() => {
-    const fetchUsersAndFriends = async () => {
+    const fetchUsers = async () => {
       setLoading(true);
       try {
-        // Fetch all users from the backend
-        const response = await axios.get('/db.json');
-        const allUsers = response.data.users; // Access the users array from the response
-    
+        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
+        const users = response.data.record.users || [];
+        setAllUsers(users);
+  
         // Fetch stored friends from localStorage
         const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || !user.id) {
-          setError('No user data found.');
-          setLoading(false);
-          return;
-        }
-        const userFriends = storedFriends[user.id] || [];
-    
-        // Filter friends' details based on their IDs
-        const friendsDetails = allUsers.filter((u) =>
-          userFriends.includes(u.id)
-        );
-    
-        // Set the filtered friends data
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        const userFriends = storedFriends[currentUser.id] || [];
+  
+        // Filter to show only friends
+        const friendsDetails = users.filter(user => userFriends.includes(user.id));
         setFriendsData(friendsDetails);
       } catch (err) {
-        console.error('Error fetching users:', err); // Log the error
         setError('Failed to fetch users');
       } finally {
         setLoading(false);
       }
     };
+    fetchUsers();
+  }, [friendsChecker]);
   
-    fetchUsersAndFriends(); // Call the function
   
-  }, [friendsChecker]); // Dependency array
   
 
   const handleRemovePost = (postId, userId) => {
@@ -1363,8 +1409,13 @@ const Search = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('/db.json'); // Adjust URL as needed
-        setAllUsers(response.data.users || []);
+        // Fetch users from jsonbin.io
+        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
+        setAllUsers(response.data.record.users || []);
       } catch (err) {
         setError('Failed to fetch users');
       } finally {
@@ -1391,7 +1442,11 @@ const Search = () => {
     
     try {
       // Assuming posts are also part of the JSON file
-      const response = await axios.get('/db.json');
+      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        headers: {
+          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+        }
+      });
       const allPosts = response.data.posts || []; // Adjust according to your JSON structure
       const userPosts = allPosts.filter(post => post.userId === user.id);
       setUserPosts(userPosts);
@@ -1499,6 +1554,13 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   const [favorites, setFavorites] = useState({});
   const [bookmarks, setBookmarks] = useState({});
   const [isPrivate,setIsPrivate]=useState(false)
+
+  const [postList, setPostList] = useState(posts || []); // Initialize postList
+
+  useEffect(() => {
+    // This will update when the posts prop changes
+    setPostList(posts);
+  }, [posts]);
 
   useEffect(() => {
     const storedBookmarks = JSON.parse(localStorage.getItem('bookmarks')) || {};
@@ -1817,10 +1879,10 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
           
          </div>
          <div className="flex items-center gap-6">
-           <p>{posts.length} <b className="font-semibold ml-1">posts</b> </p>
+         <p>{postList.length} <b className="font-semibold ml-1">posts</b></p>
            <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
          </div>
-         <p>{user.description}</p>
+         <p style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
          <div className="flex gap-4 mt-4 -ml-20 md:-ml-0">
          {friendStatus === 'Add Friend' && (
              <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
@@ -1853,8 +1915,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     <p style={{color:savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-xl font-semibold mt-2">This user's posts are private</p>
   </div>
 ) : (
-  posts.length > 0 ? (
-    posts.map((post) => (
+  postList.length > 0 ? (
+    postList.map((post) => (
      <div className="relative">
        <div
         key={post.id}
@@ -1867,7 +1929,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
         }}
       >
         <div className="flex flex-col mb-3 md:mb-0">
-          {post.highlight === 'Highlighted' && (
+          {postList.highlight === 'Highlighted' && (
             <div
               className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
               style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
@@ -1875,8 +1937,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
               Highlighted
             </div>
           )}
-          <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {post.feeling}</p>
-          <p>{post.text}</p>
+          <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {postList.feeling}</p>
+          <p>{postList.text}</p>
         </div>
         <div className="flex items-center" style={{zIndex:0}}>
           <Checkbox
@@ -2114,13 +2176,12 @@ const Notifications = ({ user }) => {
     if (!currentUser) return;
   
     const currentUserId = currentUser.id;
-    const senderId = notification.senderId; // Ensure senderId is saved when sending the friend request
+    const senderId = notification.senderId;
   
-    // Update friend lists
     const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
     if (!storedFriends[currentUserId]) storedFriends[currentUserId] = [];
     if (!storedFriends[senderId]) storedFriends[senderId] = [];
-  
+    console.log('Updated Friends List:', storedFriends);
     // Add each other to friends list
     if (!storedFriends[currentUserId].includes(senderId)) {
       storedFriends[currentUserId].push(senderId);
@@ -2263,7 +2324,11 @@ const EditProfile = ({ handleGoBack }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser));
 
     try {
-      await axios.put(`/db.json/users/${user.id}`, updatedUser);
+      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        headers: {
+          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+        }
+      });
       setSavedChangesMessage(true);
       setTimeout(() => {
         setSavedChangesMessage(false);
@@ -2275,8 +2340,10 @@ const EditProfile = ({ handleGoBack }) => {
   };
 
   const handleTogglePrivacy = () => {
-    setIsPrivate(!isPrivate);
-    setUser({ ...user, isPrivate: !isPrivate });
+    const newPrivacySetting = !isPrivate;
+    setIsPrivate(newPrivacySetting);
+    setUser({ ...user, isPrivate: newPrivacySetting });
+    localStorage.setItem('user', JSON.stringify({ ...user, isPrivate: newPrivacySetting })); // Update in local storage
   };
 
   if (!user) {
@@ -2413,7 +2480,7 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   const [text, setText] = useState('');
   const [emptyError,setEmptyError]=useState(false)
   const [open, setOpen] = useState(false); /// error snackbar
-
+  const [postsuccess,setPostsuccess]=useState(false)
 
   const handleFeelingChange = (e) => {
     setFeeling(e.target.value);
@@ -2426,7 +2493,11 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (feeling && text) {
-      handleAddPost(feeling, text, highlight, user.id);
+      setPostsuccess(true)
+      setTimeout(() => {
+        setPostsuccess(false)
+      }, 3000);
+      const newPost = handleAddPost(feeling, text, highlight, user.id);
     }
     if (feeling.trim()==='' || text.trim()==='') {
       setEmptyError(true)
@@ -2540,6 +2611,27 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
           />
       </Snackbar>
     </div>
+    }
+    {postsuccess &&
+    <div>
+    <Snackbar
+     open={postsuccess}
+     sx={{backgroundColor:'#cfa0a0',color:'#4a2626', borderRadius:15}}
+     autoHideDuration={6000}
+     onClose={() => postsuccess(false)}
+    
+   >
+      <SnackbarContent
+         sx={{
+           backgroundColor: '#a0cfa0',
+           color: '#264a26',
+           fontWeight:500,
+          
+         }}
+         message="Post made Successfully"
+       />
+   </Snackbar>
+ </div>
     }
   </div>
   );

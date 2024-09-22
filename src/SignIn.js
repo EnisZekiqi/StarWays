@@ -12,17 +12,22 @@ const SignIn = () => {
  
 
 
-    const [nickname, setNickname] = useState('');
-    const [password, setPassword] = useState('');
+  
     const [description,setDescription]=useState('')
     const [month, setMonth] = useState('');
       const [day, setDay] = useState('');
       const [year, setYear] = useState('');
       const [gender, setGender] = useState('');
+//// state of the description,month,year,gender
+
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const days = Array.from({ length: 31 }, (_, i) => i + 1); // Array for days 1-31
+      const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i);
+      ////// arrays fro teh day month and years 
 
 
     const [open, setOpen] = useState(false); //// snackbar opener 
-    const [error, setError] = useState('');
+   
     const [userError,setUserError]=useState(false) //// same username attempt
 
     useEffect(() => {
@@ -70,29 +75,8 @@ const SignIn = () => {
       }
     };
   
-    const AddUser = async (user) => {
-      try {
-        const response = await axios.post('/db.json', user);
-        return response.data;
-      } catch (err) {
-        if (err.response && err.response.status === 409) {
-          throw new Error('This username already exists');
-        }
-        throw err;
-      }
-    };
 
-    const handleUserSignUp = (newUser) => {
-      const storedUsers = localStorage.getItem('users');
-      const usersArray = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      // Add the new user to the array
-      usersArray.push(newUser);
-      
-      // Save the updated array back to localStorage
-      localStorage.setItem('users', JSON.stringify(usersArray));
-  };
-
+  
 
     const navigate = useNavigate();
   
@@ -100,43 +84,75 @@ const SignIn = () => {
       return axios.post('/db.json', newUser);
     });
   
-    const handleSubmit = (e) => {
-      e.preventDefault();
+    const [nickname, setNickname] = useState('');
+  const [password, setPassword] = useState('');
+  const [users, setUsers] = useState([]); // Local state to store users
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
   
-      if (!nickname || !password || !month || !day || !year || !gender || !description) {
-        setError('Please fill out all fields');
-        return;
-      }
+    if (nickname.trim() === '' || password.trim() === '') {
+      setError('Please fill out all fields.');
+      return;
+    }
   
-      const newUser = {
-        nickname,
-        password,
-        birthday: `${month}/${day}/${year}`,
-        gender,
-        description
-      };
-  
-      mutation.mutate(newUser, {
-        onSuccess: () => {
-          navigate('/main');
-          Cookies.set('Demo','true')
-          
-        },
-        onError: (err) => {
-          if (err.response && err.response.status === 409) {
-            setUserError(true);
-            setOpen(true);
-          } else {
-            setError('An error occurred. Please try again.');
-            setOpen(true);
-          }
+    try {
+      // 1. Fetch the current users
+      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        headers: {
+          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
         }
       });
-    };
+      const currentUsers = response.data.record.users;
+  
+      // 2. Add the new user to the list
+      const newUser = {
+        id: currentUsers.length + 1, // Incremental ID
+        nickname: nickname,
+        password: password,
+        description:description,
+        birthDate: {
+          month,
+          day,
+          year,
+        },
+        gender:gender
+      };
+      const updatedUsers = [...currentUsers, newUser];
+  
+      // 3. Update the db.json (on jsonbin.io) with the new user list
+      await axios.put('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', 
+        { users: updatedUsers },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        }
+      );
+  
+      console.log('User saved successfully:', newUser);
+      localStorage.setItem('user', JSON.stringify(newUser));
+  
+      // Navigate to the main page or show a success message
+      setTimeout(() => {
+        navigate('/main');
+      }, 2000);
+  
+    } catch (error) {
+      console.error('Error saving user:', error);
+      setError('Failed to save the user');
+    }
+  };
+  
+  
+
+  
 
 
     return ( 
-        <div style={{backgroundColor:theme === 'light'?'#fbfbfb':'#18191b'}} className="h-fit md:h-screen">
+        <div style={{backgroundColor:theme === 'light'?'#fbfbfb':'#18191b'}} className="h-fit ">
              <div>
             <div style={colors.css} className="flex justify-between items-center ">
            <a href="/">
@@ -156,14 +172,17 @@ const SignIn = () => {
                 </div>
             </div>
         </div>
-        <div className="empty2"/>
+        <div className="empty2 -mt-5"/>
+        <h1 style={{
+          marginBottom:5,marginTop:'-15px', color: theme === 'light' ? '#232629' : '#fbfbfb'
+        }} className="font-bold text-xl md:text-2xl text-center">Create an account for free</h1>
        <div className="w-full flex items-center justify-center ">
        <div className="flex flex-col items-center justify-center md:w-1/2 px-4 pb-6 pt-4"
         style={{backgroundColor:theme === 'light' ? '#fbfbfb':'#232629',
           border:theme === 'light '? '1px solid #dddfe2':'1px solid #dddfe2',
           borderRadius:'10px'
         }}
-        >
+        > 
          <form action="" onSubmit={handleSubmit} className="flex flex-col gap-4" >
         <div className="flex justify-around gap-3 flex-col md:flex-row">
         <input
@@ -182,46 +201,29 @@ const SignIn = () => {
           
         />
         </div>
-        <div className="flex justify-around gap-3 flex-col md:flex-row">
-        <input
-            type="text"
-            placeholder="Month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            style={styles.input}
-          />
-           <input
-            type="text"
-            placeholder="Day"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-            style={styles.input}
-          />
-            <input
-            type="text"
-            placeholder="Year"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            style={styles.input}
-          />
-        </div>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            style={styles.input}
-          >
-            <option value="" disabled>Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={styles.input}
-          />
+        <select style={styles.input} value={month} onChange={(e) => setMonth(e.target.value)} required>
+        <option value="">Select Month</option>
+        {months.map((m, index) => <option key={index} value={m}>{m}</option>)}
+      </select>
+      
+      <select style={styles.input} value={day} onChange={(e) => setDay(e.target.value)} required>
+        <option value="">Select Day</option>
+        {days.map((d) => <option key={d} value={d}>{d}</option>)}
+      </select>
+      
+      <select style={styles.input} value={year} onChange={(e) => setYear(e.target.value)} required>
+        <option value="">Select Year</option>
+        {years.map((y) => <option key={y} value={y}>{y}</option>)}
+      </select>
+
+      {/* Gender Selector */}
+      <select style={styles.input} value={gender} onChange={(e) => setGender(e.target.value)} required>
+        <option value="">Select Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+      <input type="text" style={styles.input} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
          <button type="submit" style={styles.button}>Sign In</button>
          </form>
         </div>
@@ -232,7 +234,7 @@ const SignIn = () => {
         onClose={() => setOpen(false)}
         message={userError ? 'This username already exists' : error}
       />
-      <div className="empty3 block md:hidden"></div>
+      <div className="empty3 "></div>
         </div>
      );
 }
