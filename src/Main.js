@@ -91,10 +91,10 @@ const [messagesCount,setMessagesCount]=useState(0)
       const existingPosts = JSON.parse(localStorage.getItem('posts')) || [];
       const updatedPosts = [...existingPosts, newPost];
       localStorage.setItem('posts', JSON.stringify(updatedPosts));
-      
+    
       return newPost; // Return the new post
     };
-
+    
     
   
     const open = Boolean(anchorEl);
@@ -402,7 +402,7 @@ useEffect(() => {
       </div>
       </div>
      <div className="flex lg:hidden fixed bottom-0 w-full py-2 justify-around h-fit"
-      style={{backgroundColor:savedTheme==='light'?'#eff0f1':'#18191b', color: savedTheme === 'light' ? '#232629' : '#fbfbfb',  borderTop:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45',}}
+      style={{zIndes:1000,backgroundColor:savedTheme==='light'?'#eff0f1':'#18191b', color: savedTheme === 'light' ? '#232629' : '#fbfbfb',  borderTop:savedTheme=== 'light'?'1px solid #dddfe2':'1px solid #3b3f45',}}
      >
       <div onClick={() => handleTabChange('home')} id="home" className={getItemClass('home')}>
         {activeTab === 'home' ?  <HomeIcon />: <HomeOutlinedIcon />}
@@ -936,7 +936,10 @@ const SearchPlusExplore = () => {
 
   const showUser = (user) => {
     setShowUserProfile(user);
-    const userPosts = allPosts.filter(post => post.userId === user.id);
+
+    // Filter the posts by the selected user's ID
+    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    const userPosts = storedPosts.filter(post => post.userId === user.id);
     setUserPosts(userPosts);
   };
 
@@ -1404,25 +1407,29 @@ const Search = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showUserProfile, setShowUserProfile] = useState(null);
-
+  const [allPosts, setAllPosts] = useState([]);
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch users from jsonbin.io
         const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
           headers: {
             'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
           }
         });
-        setAllUsers(response.data.record.users || []);
+
+        // Assuming users and posts are stored in the response
+        const data = response.data.record;
+        setAllUsers(data.users || []);  // Set the fetched users
+        setAllPosts(data.posts || []);  // Set the fetched posts
       } catch (err) {
-        setError('Failed to fetch users');
+        setError('Failed to fetch users and posts');
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -1437,23 +1444,17 @@ const Search = () => {
     }
   }, [searchQuery, allUsers]);
 
-  const showUser = async (user) => {
+  const showUser = (user) => {
     setShowUserProfile(user);
-    
-    try {
-      // Assuming posts are also part of the JSON file
-      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-        headers: {
-          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-        }
-      });
-      const allPosts = response.data.posts || []; // Adjust according to your JSON structure
-      const userPosts = allPosts.filter(post => post.userId === user.id);
-      setUserPosts(userPosts);
-    } catch (err) {
-      setError('Failed to fetch user posts');
-    }
+
+    // Filter the posts by the selected user's ID
+    const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
+    const userPosts = storedPosts.filter(post => post.userId === user.id);
+    setUserPosts(userPosts);
   };
+
+  // Handle back to search view
+
 
   const handleBackToSearch = () => {
     setShowUserProfile(null);
@@ -1558,15 +1559,27 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   const [postList, setPostList] = useState(posts || []); // Initialize postList
 
   useEffect(() => {
-    // This will update when the posts prop changes
+  
+
     setPostList(posts);
   }, [posts]);
+  const userPosts = postList.filter(post => post.userId === user.id);
+  
 
   useEffect(() => {
     const storedBookmarks = JSON.parse(localStorage.getItem('bookmarks')) || {};
     setBookmarks(storedBookmarks);
    
   }, []);
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser && typeof storedUser === 'object') {
+      const currentUserId = storedUser.id;
+      const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
+      setFavorites(savedLiked[currentUserId] || {}); // Set favorites for the current user
+    }
+  }, []);
+
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -1854,52 +1867,57 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
       <ArrowBackIosNewIcon />
      </button>
-     <div className="flex gap-6 w-full ">
-       <div className="h-fit flex ">
+     <div className=" relative flex gap-6 w-full ">
+     <h1 className="absolute  left-28 font-semibold text-xl text-center ">{user.nickname}</h1>
+       <div className="h-fit flex mt-7 md:mt-0">
        <div className="hidden md:block">
-        <Avatar  sx={{ width: '125px', height: '125px' }} alt={user.nickname} src={user.avatar || ''} />
+        
          {isUserOnline(user.id) ? <Tooltip title="Online"><span className="11 absolute flex w-8 h-8 rounded-full ml-24 -mt-8"
          style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ></span></Tooltip> : <Tooltip title="Offline"><span className="11 absolute flex items-center w-8 h-8 rounded-full ml-24 -mt-8"
          style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
         </div>
-       <div className="block md:hidden">
+       <div className="block md:hidden ">
+        <div className="flex flex-col">
+       
         <Avatar className="block md:hidden" sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} />
-        {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 absolute flex w-6 h-6 rounded-full ml-14 -mt-5"
+       
+        </div>
+        {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 relative flex w-6 h-6 rounded-full ml-14 -mt-5"
          style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
-         ></span></Tooltip> : <Tooltip title="Offline"><span className="22 absolute flex items-center w-6 h-6 rounded-full ml-14 -mt-5"
+         ></span></Tooltip> : <Tooltip title="Offline"><span className="22 relative flex items-center w-6 h-6 rounded-full ml-14 -mt-5"
          style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
         </div>
        </div>
-       <div className="flex flex-col gap-3 w-full">
+       <div className="flex flex-col gap-3 w-full mt-7 md:mt-0">
          <div className="flex gap-3">
-           <h1 className="font-medium text-xl">{user.nickname}</h1>
+           <h1 className="hidden md:block font-medium text-xl">{user.nickname}</h1>
           
          </div>
          <div className="flex items-center gap-6">
-         <p>{postList.length} <b className="font-semibold ml-1">posts</b></p>
-           <p>{friendCount} <b className="font-semibold ml-1">friends</b></p>
+         <div className="flex-col items-center md:flex-row text-center">{postList.length} <b className="font-semibold ml-1">posts</b></div>
+           <div className="flex-col items-center md:flex-row text-center">{friendCount} <b className="font-semibold ml-1">friends</b></div>
          </div>
          <p style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
-         <div className="flex gap-4 mt-4 -ml-20 md:-ml-0">
+         <div className="flex gap-4 mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
          {friendStatus === 'Add Friend' && (
-             <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-4 py-2 rounded">
+             <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-2.5 md:px-4 py-1 md:py-2 rounded">
                Add Friend
              </button>
            )}
            {friendStatus === 'Request Sent' && (
-             <button  style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} className=" text-white px-4 py-2 rounded" disabled>
+             <button  style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629'}} className=" text-white px-2.5 md:px-4 py-1 md:py-2 rounded" disabled>
                Request Sent
              </button>
            )}
            {friendStatus === 'Friends' && (
-             <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} className=" px-4 py-2 rounded" >
+             <button onClick={()=>setModalConfirmation(true)} style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} className=" px-2.5 md:px-4 py-1 md:py-2 rounded" >
                Friends
              </button>
            )}
-           <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} onClick={() => setModalOpen(true)} className=" px-4 py-2 rounded">Send Message</button>
+           <button style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629', color:savedTheme === 'light' ? '#26374a' : '#a0b6cf'}} onClick={() => setModalOpen(true)} className=" px-2.5 md:px-4 py-1 md:py-2 rounded">Send Message</button>
          </div> {/* Displaying 'description' */}
          <div className="flex justify-center items-center w-full  -ml-20 md:-ml-0"
          style={{borderTop:savedTheme==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
@@ -1915,12 +1933,12 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     <p style={{color:savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-xl font-semibold mt-2">This user's posts are private</p>
   </div>
 ) : (
-  postList.length > 0 ? (
-    postList.map((post) => (
+  posts.length > 0 ? (
+    posts.map((post) => (
      <div className="relative">
        <div
         key={post.id}
-        className="post absolute  p-4  mb-4 mt-4 -ml-20 flex flex-col md:flex-row justify-between w-full"
+        className="post   p-4  mb-4 mt-4 -ml-20 flex flex-col md:flex-row justify-between w-full"
         style={{
           backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
           borderRadius: '5px',
@@ -1929,7 +1947,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
         }}
       >
         <div className="flex flex-col mb-3 md:mb-0">
-          {postList.highlight === 'Highlighted' && (
+          {post.highlight === 'Highlighted' && (
             <div
               className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
               style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
@@ -1937,8 +1955,8 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
               Highlighted
             </div>
           )}
-          <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {postList.feeling}</p>
-          <p>{postList.text}</p>
+          <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {post.feeling}</p>
+          <p>{post.text}</p>
         </div>
         <div className="flex items-center" style={{zIndex:0}}>
           <Checkbox
@@ -2477,6 +2495,7 @@ height: '15px', // Use accentColor to apply color when checked
 const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
 
   const [feeling, setFeeling] = useState('');
+  const [userPosts,setUserPosts]=useState([])
   const [text, setText] = useState('');
   const [emptyError,setEmptyError]=useState(false)
   const [open, setOpen] = useState(false); /// error snackbar
@@ -2492,21 +2511,30 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (feeling && text) {
-      setPostsuccess(true)
+  
+    if (feeling.trim() !== '' && text.trim() !== '') {
+      setPostsuccess(true);
       setTimeout(() => {
-        setPostsuccess(false)
+        setPostsuccess(false);
       }, 3000);
+      
       const newPost = handleAddPost(feeling, text, highlight, user.id);
-    }
-    if (feeling.trim()==='' || text.trim()==='') {
-      setEmptyError(true)
-      setOpen(true)
+      
+      // Optionally, add the new post to the current user's posts state
+      setUserPosts(prevPosts => [...prevPosts, newPost]);
+  
+      // Reset input fields
+      setFeeling('');
+      setText('');
+    } else {
+      setEmptyError(true);
+      setOpen(true);
       setTimeout(() => {
-        setEmptyError(false)
+        setEmptyError(false);
       }, 3000);
     }
   };
+  
   
   const savedTheme = localStorage.getItem('color') || 'light';
   return (
