@@ -977,7 +977,7 @@ const SearchPlusExplore = () => {
             <input
               type="text"
               placeholder="Search users..."
-              className="mt-8 lg:mt-0"
+              className="mt-8 lg:mt-0 w-48 md:w-64 "
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -985,7 +985,7 @@ const SearchPlusExplore = () => {
                 padding: '5px',
                 borderRadius: '5px',
                 border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-                width: '300px',
+               
               }}
             />
             <div>
@@ -1867,11 +1867,13 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
       <button className="w-fit h-fit" onClick={onBack} style={{ marginBottom: '50px',marginLeft:'-30px',marginRight:'20px' }}>
       <ArrowBackIosNewIcon />
      </button>
-     <div className=" relative flex gap-6 w-full ">
-     <h1 className="absolute  left-28 font-semibold text-xl text-center ">{user.nickname}</h1>
+     <div className=" relative flex gap-6  w-full ">
+     <h1 className="absolute md:hidden  left-28 font-semibold text-xl text-center w-fit"
+     style={{borderBottom:savedTheme ==='light'?'2px solid #dddfe2':'2px solid #3b3f45'}}
+     >{user.nickname}</h1>
        <div className="h-fit flex mt-7 md:mt-0">
        <div className="hidden md:block">
-        
+       <Avatar className="block md:hidden" sx={{ width: '115px', height: '115px' }} alt={user.nickname} src={user.avatar || ''} />
          {isUserOnline(user.id) ? <Tooltip title="Online"><span className="11 absolute flex w-8 h-8 rounded-full ml-24 -mt-8"
          style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ></span></Tooltip> : <Tooltip title="Offline"><span className="11 absolute flex items-center w-8 h-8 rounded-full ml-24 -mt-8"
@@ -1881,7 +1883,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
        <div className="block md:hidden ">
         <div className="flex flex-col">
        
-        <Avatar className="block md:hidden" sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} />
+        <Avatar className="block md:hidden " sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} />
        
         </div>
         {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 relative flex w-6 h-6 rounded-full ml-14 -mt-5"
@@ -1901,7 +1903,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
            <div className="flex-col items-center md:flex-row text-center">{friendCount} <b className="font-semibold ml-1">friends</b></div>
          </div>
          <p style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
-         <div className="flex gap-4 mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
+         <div className="flex gap-4 mt-8 md:mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
          {friendStatus === 'Add Friend' && (
              <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-2.5 md:px-4 py-1 md:py-2 rounded">
                Add Friend
@@ -1935,10 +1937,10 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
 ) : (
   posts.length > 0 ? (
     posts.map((post) => (
-     <div className="relative">
+     
        <div
         key={post.id}
-        className="post   p-4  mb-4 mt-4 -ml-20 flex flex-col md:flex-row justify-between w-full"
+        className="post   py-4 px-2 md:px-4 mb-4 mt-4 -ml-20 flex flex-col md:flex-row justify-between w-full"
         style={{
           backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
           borderRadius: '5px',
@@ -1949,7 +1951,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
         <div className="flex flex-col mb-3 md:mb-0">
           {post.highlight === 'Highlighted' && (
             <div
-              className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+              className="high font-semibold text-xs p-1 w-fit -ml-3.5 -mt-4"
               style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
             >
               Highlighted
@@ -1967,7 +1969,7 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
           />
         </div>
       </div>
-     </div>
+     
     ))
   ) : (
     <div className="flex flex-col items-center justify-center mt-12 mb-4  -ml-24 w-full">
@@ -2291,9 +2293,11 @@ const EditProfile = ({ handleGoBack }) => {
   const [image, setImage] = useState(''); // Image URL
   const [isPrivate, setIsPrivate] = useState(false); // Account privacy
   const [password, setPassword] = useState('');
+  const [nickname,setNickname]=useState('')
   const [error, setError] = useState('');
   const [savedChangesMessage, setSavedChangesMessage] = useState(false);
-  const [changesDescription,setChangesDescription]=useState(false)
+  const [changesDescription,setChangesDescription]=useState(false) //// error for long description
+  const[changesUsername,setChangesUsername]=useState(false)
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -2312,6 +2316,15 @@ const EditProfile = ({ handleGoBack }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+  
+    if (name === 'nickname' && value.length > 12) {
+      setChangesUsername(true);
+      setTimeout(() => {
+        setChangesUsername(false);
+      }, 3000);
+      return; // Prevent further updates if length exceeds 12
+    }
+  
     if (name === 'description' && value.length > 10) {
       setChangesDescription(true);
       setTimeout(() => {
@@ -2319,6 +2332,7 @@ const EditProfile = ({ handleGoBack }) => {
       }, 3000);
       return; // Prevent further updates if length exceeds 10
     }
+  
     setUser({ ...user, [name]: value });
   };
 
@@ -2371,7 +2385,7 @@ const EditProfile = ({ handleGoBack }) => {
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
-    <div className="flex gap-14 w-full" style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', marginTop: 30 }}>
+    <div className="flex gap-5 md:gap-14  w-full" style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', marginTop: 30 }}>
       <div className="cursor-pointer h-fit" onClick={handleGoBack} style={{ color: savedTheme === 'light' ? '#5e666e' : '#d6d9dc' }}>
         <ArrowBackIosNewIcon />
       </div>
@@ -2391,7 +2405,7 @@ const EditProfile = ({ handleGoBack }) => {
             placeholder="Enter image URL"
             value={image}
             onChange={handleImageChange} // Update image URL
-            className="p-1 md:p-2"
+            className="p-1 md:p-2 w-48 md:w-fit"
             style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
           />
           <button onClick={handleSaveChanges} className="px-2 font-medium" style={{ backgroundColor: savedTheme === 'light' ? '#A0B6CF' : '#A0B6CF', color: savedTheme === 'light' ? '#26374a' : '#26374a', borderRadius: '5px' }}>
@@ -2429,13 +2443,18 @@ const EditProfile = ({ handleGoBack }) => {
         <p className="font-semibold mt-6 text-lg">Account settings</p>
   <p className="font-light mt-3 mb-2">Username</p>
   <input
-      type="text"
-      name="Username"
-      value={user.nickname}
-      onChange={handleInputChange}
-      className="p-2"
-      style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
-    />
+  type="text"
+  name="nickname"
+  value={user.nickname}
+  onChange={handleInputChange}
+  className="p-2"
+  style={{ 
+    backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', 
+    color: savedTheme === 'light' ? '#232629' : '#fbfbfb', 
+    borderRadius: '5px',
+    border: savedTheme === 'light' ? '#dddfe2' : '#3b3f45' 
+  }}
+/>
    <p className="font-light mt-3 mb-2">Password</p>
     <input
       type="password"
@@ -2445,8 +2464,8 @@ const EditProfile = ({ handleGoBack }) => {
       className="p-2"
       style={{ backgroundColor: savedTheme === 'light' ? '#fff' : '#2d2d2d', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '5px',border:savedTheme ==='light'?'#dddfe2':'#3b3f45' }}
     />
-    <div className="flex items-center gap-2 mt-4">
-  <p className="font-light">Account Privacy</p>
+    <div className="flex items-center gap-4 md:gap-2 mt-4">
+  <p className="font-light text-sm md:text-md">Account Privacy</p>
   <label className="switch">
     <input type="checkbox" checked={isPrivate}  style={{
 accentColor: isPrivate ? "#a0b6cf" : "",transform: "scale(1.2)", // Scale the checkbox to make it larger
@@ -2484,6 +2503,19 @@ height: '15px', // Use accentColor to apply color when checked
           <SnackbarContent
             sx={{ backgroundColor: '#cfcfa0', color: '#4a4a26', fontWeight: 500 }}
             message="Description must have 15 letters max"
+          />
+        </Snackbar>
+      )}
+       {changesUsername && (
+        <Snackbar
+          open={changesUsername}
+          sx={{ backgroundColor: '#cfcfa0', color: '#4a4a26', borderRadius: 15 }}
+          autoHideDuration={6000}
+          onClose={() => setChangesDescription(false)}
+        >
+          <SnackbarContent
+            sx={{ backgroundColor: '#cfcfa0', color: '#4a4a26', fontWeight: 500 }}
+            message="Nickname must have 12 letters max"
           />
         </Snackbar>
       )}

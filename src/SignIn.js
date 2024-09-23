@@ -6,6 +6,12 @@ import axios from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import Snackbar from '@mui/material/Snackbar';
 import { useNavigate } from "react-router-dom";
+import Button from '@mui/material/Button';
+import Test from './Test'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import MenuIcon from '@mui/icons-material/Menu';
 
 const SignIn = () => {
     const [theme, setTheme] = useState('light');
@@ -88,12 +94,32 @@ const SignIn = () => {
   const [password, setPassword] = useState('');
   const [users, setUsers] = useState([]); // Local state to store users
   const [error, setError] = useState('');
+  const [nicknameLong,setNicknameLong]=useState('')
+  const [descriptionLong,setDescriptionLong]=useState('')
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
   
     if (nickname.trim() === '' || password.trim() === '') {
       setError('Please fill out all fields.');
+      return;
+    }
+
+    if (nickname.length > 12) {
+      setNicknameLong('Username should have 12 letters');
+      setOpen(true)
+      setTimeout(() => {
+        setOpen(false)
+      }, 3000);
+      return;
+    }
+    if (description.length > 15) {
+      setDescriptionLong('Description should have 12 letters');
+      setOpen(true)
+      setTimeout(() => {
+        setOpen(false)
+      }, 3000);
       return;
     }
   
@@ -145,7 +171,20 @@ const SignIn = () => {
       setError('Failed to save the user');
     }
   };
-  
+
+
+
+  const [anchorEl, setAnchorEl] = useState(null);
+
+const open1 = Boolean(anchorEl);
+
+const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
   
 
   
@@ -161,13 +200,46 @@ const SignIn = () => {
             </div>
            </a>
                 <div className="flex gap-3 items-center pr-2">
-                    
-                    <Test2   updateTheme={updateTheme}/>
-                    <a href="/signin" className="font-medium"
+                <a href="/" className="font-medium"
                     style={{color:theme === 'light' ? '#232629':'#fbfbfb'}}
                     >
-                        Sign Up
+                     Go Back
                     </a>
+                <Button
+        id="basic-button"
+        aria-controls={open1 ? 'basic-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open1 ? 'true' : undefined}
+        onClick={handleClick}
+        className="flex items-center"
+        style={{ minWidth: 'auto', padding: 0 }}
+      >
+        <MenuIcon sx={{color:theme==='light'?'#232629':'#fbfbfb',zIndex:1000}}/>
+
+      </Button>
+      <Menu
+        id="basic-menu"
+        anchorEl={anchorEl}
+        open={open1}
+        onClose={handleClose}
+        MenuListProps={{
+          'aria-labelledby': 'basic-button',
+        }}
+        PaperProps={{
+          style: {
+            marginTop: '-40px', // Adjust to space between button and menu
+            padding:'10px',
+            zIndex: 120, // Ensure the menu appears above other content
+        color:theme==='light'?'#232629':'#fbfbfb',backgroundColor:theme==='light'?'#fbfbfb':'#232629',
+        border:theme==='light'?'1px solid #dddfe2':'1px solid #3b3f45',borderRadius:'10px'
+          },
+        }}
+      >
+        <Test updateTheme={updateTheme}/>
+      <a href="#information" ><MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleClose}>Information</MenuItem></a>  
+      
+      </Menu>
+                   
                     
                 </div>
             </div>
@@ -233,6 +305,21 @@ const SignIn = () => {
         autoHideDuration={6000}
         onClose={() => setOpen(false)}
         message={userError ? 'This username already exists' : error}
+      
+      />
+       <Snackbar
+        open={open}
+        autoHideDuration={6000}
+        onClose={() => setOpen(false)}
+        message={nicknameLong ? 'Nickname must have 12 letters max' : error}
+      
+      />
+       <Snackbar
+        open={open}
+        autoHideDuration={6000}
+        onClose={() => setOpen(false)}
+        message={descriptionLong ? 'Description must have 15 letters max' : error}
+      
       />
       <div className="empty3 "></div>
         </div>
