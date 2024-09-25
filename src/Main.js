@@ -86,14 +86,66 @@ const [messagesCount,setMessagesCount]=useState(0)
       setHighlight(highlight);
     };
 
-    const handleAddPost = (feeling, text, highlight, userId) => {
-      const newPost = { feeling, text, highlight, id: Date.now(), userId };
-      const existingPosts = JSON.parse(localStorage.getItem('posts')) || [];
-      const updatedPosts = [...existingPosts, newPost];
-      localStorage.setItem('posts', JSON.stringify(updatedPosts));
+    const handleAddPost = async (feeling, text, highlight, userId, userNickname, userAvatar) => {
+      // Prevent execution if any required fields are missing
+      if (!feeling.trim() || !text.trim()) {
+        console.error('Please fill out all fields.');
+        return;
+      }
     
-      return newPost; // Return the new post
+      try {
+        // 1. Fetch existing posts from JSONBin
+        const response = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
+          },
+        });
+    
+        // Log the API response to understand its structure
+        console.log('API response:', response.data);
+    
+        // Extract existing posts safely, ensuring it's an array
+        const existingPosts = Array.isArray(response.data.record.posts) ? response.data.record.posts : [];
+        
+        // 2. Add the new post to the list
+        const newPost = {
+          feeling,
+          text,
+          highlight,
+          userId,
+          userNickname,
+          userAvatar,
+          createdAt: new Date().toISOString(), // Include createdAt
+        };
+    
+        const updatedPosts = [...existingPosts, newPost]; // Concatenate newPost
+        console.log('Updated Posts:', updatedPosts); // Debug log
+    
+        // 3. Update the posts list on the API
+        await axios.put('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', 
+          { posts: updatedPosts }, // Send the updated posts array directly
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
+            },
+          }
+        );
+    
+        // Optionally update local storage if needed
+        const existingLocalPosts = JSON.parse(localStorage.getItem('posts')) || [];
+        const updatedLocalPosts = [...existingLocalPosts, newPost];
+        localStorage.setItem('posts', JSON.stringify(updatedLocalPosts));
+    
+        // You can return the new post or perform further actions
+        return newPost; 
+      } catch (error) {
+        console.error("Error adding post:", error);
+        throw error; // Handle errors as needed
+      }
     };
+    
+    
     
     
   
@@ -452,6 +504,7 @@ useEffect(() => {
 
 const HomeComponent = () => {
   const [allPosts, setAllPosts] = useState([]);
+  const [allUsers,setAllUsers]=useState([])
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -460,9 +513,20 @@ const HomeComponent = () => {
 
   // Fetch friends and their posts
   useEffect(() => {
-    const fetchFriendPosts = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch users from JSONBin
+        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
+
+        // Set all users
+        setAllUsers(usersResponse.data.record.users || []);
+        
+        // Fetch posts from localStorage
         const storedUser = JSON.parse(localStorage.getItem('user'));
         const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
 
@@ -476,21 +540,28 @@ const HomeComponent = () => {
           const friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
           setAllPosts(friendPosts);
 
-          // Fetch all users to get friend details from jsonbin.io
-          const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+          // Set friends if you want to use them elsewhere
+          setFriends(usersResponse.data.record.users.filter(user => friendIds.includes(user.id)) || []);
+        } else {
+          // If no friends or no user, fetch all posts
+          const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
             headers: {
               'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
             }
           });
-          setFriends(response.data.record.users || []);
+          
+          // Set all posts from fetched posts
+          setAllPosts(postsResponse.data.record.posts || []);
         }
       } catch (err) {
         setError('Failed to fetch data');
+        console.error(err); // Log error for debugging
       } finally {
         setLoading(false);
       }
     };
-    fetchFriendPosts();
+
+    fetchData();
   }, []);
 
   // Handle bookmark and like actions
@@ -649,33 +720,26 @@ const ExploreComponent = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-
-        // Fetch posts from localStorage
-        const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
-
-        // Fetch all users to get friend details from jsonbin.io
-        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        // Fetch users from JSONBin
+        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
           headers: {
             'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
           }
         });
 
-        setAllUsers(response.data.record.users || []);
-        setFriends(response.data.record.users || []); // Assuming all users are friends for now
+        // Fetch posts from JSONBin
+        const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
 
-        // If the user has friends, filter friend posts
-        let friendPosts = [];
-        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
-          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
-          friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
-        }
-
-        // Set all posts
-        setAllPosts([...friendPosts, ...storedPosts]); // Combine friend posts with all posts
+        // Set all users and posts
+        setAllUsers(usersResponse.data.record.users || []);
+        setAllPosts(postsResponse.data.record.posts || []);
       } catch (err) {
         setError('Failed to fetch data');
+        console.error(err); // Log error for debugging
       } finally {
         setLoading(false);
       }
@@ -830,33 +894,26 @@ const SearchPlusExplore = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-
-        // Fetch posts from localStorage
-        const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
-
-        // Fetch all users to get friend details from jsonbin.io
-        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        // Fetch users from JSONBin
+        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
           headers: {
             'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
           }
         });
 
-        setAllUsers(response.data.record.users || []);
-        setFriends(response.data.record.users || []); // Assuming all users are friends for now
+        // Fetch posts from JSONBin
+        const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
+          }
+        });
 
-        // If the user has friends, filter friend posts
-        let friendPosts = [];
-        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
-          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
-          friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
-        }
-
-        // Set all posts
-        setAllPosts([...friendPosts, ...storedPosts]); // Combine friend posts with all posts
+        // Set all users and posts
+        setAllUsers(usersResponse.data.record.users || []);
+        setAllPosts(postsResponse.data.record.posts || []);
       } catch (err) {
         setError('Failed to fetch data');
+        console.error(err); // Log error for debugging
       } finally {
         setLoading(false);
       }
@@ -864,6 +921,7 @@ const SearchPlusExplore = () => {
 
     fetchData();
   }, []);
+
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -2560,29 +2618,30 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
     setText(e.target.value);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
   
     if (feeling.trim() !== '' && text.trim() !== '') {
-      setPostsuccess(true);
-      setTimeout(() => {
-        setPostsuccess(false);
-      }, 3000);
-      
-      const newPost = handleAddPost(feeling, text, highlight, user.id);
-      
-      // Optionally, add the new post to the current user's posts state
-      setUserPosts(prevPosts => [...prevPosts, newPost]);
+      setEmptyError(false); // Reset empty error state
   
-      // Reset input fields
-      setFeeling('');
-      setText('');
+      try {
+        // Call handleAddPost to add post to JSONBin and local storage
+        await handleAddPost(feeling, text, highlight, user.id, user.nickname, user.avatar);
+        setPostsuccess(true); // Set success state
+  
+        // Reset input fields
+        setFeeling('');
+        setText('');
+  
+        // Show success message for a duration
+        setTimeout(() => setPostsuccess(false), 3000);
+      } catch (error) {
+        // Handle the error state as necessary
+        console.error("Error submitting post:", error);
+      }
     } else {
       setEmptyError(true);
-      setOpen(true);
-      setTimeout(() => {
-        setEmptyError(false);
-      }, 3000);
+      setTimeout(() => setEmptyError(false), 3000);
     }
   };
   
