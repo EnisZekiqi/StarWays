@@ -99,7 +99,7 @@ const [open, setOpen] = useState(false);
                 <div className="flex w-full items-center gap-3 justify-center md:hidden">
                 <button
         onClick={() => setOpen(true)}
-        className="rounded p-1 text-lg font-medium"
+        className="rounded-md p-1.5 text-lg font-medium"
         style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
       >
        Log In

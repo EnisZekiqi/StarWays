@@ -96,12 +96,13 @@ const SignIn = () => {
   const [error, setError] = useState('');
   const [nicknameLong,setNicknameLong]=useState('')
   const [descriptionLong,setDescriptionLong]=useState('')
+  const [loading, setLoading] = useState(false);
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
   
-    if (nickname.trim() === '' || password.trim() === '') {
+    if (nickname.trim() === '' || password.trim() === '' || description.trim() === '') {
       setError('Please fill out all fields.');
       return;
     }
@@ -130,24 +131,26 @@ const SignIn = () => {
           'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
         }
       });
-      const currentUsers = response.data.record.users;
+  
+      // Log the response to see its structure
+      console.log('API response:', response.data);
+  
+      // Extract users safely, ensuring it's an array
+      const currentUsers = Array.isArray(response.data.record.users) ? response.data.record.users : [];
   
       // 2. Add the new user to the list
       const newUser = {
-        id: currentUsers.length + 1, // Incremental ID
-        nickname: nickname,
-        password: password,
-        description:description,
-        birthDate: {
-          month,
-          day,
-          year,
-        },
-        gender:gender
+        id: currentUsers.length + 1,
+        nickname,
+        password,
+        description,
+        birthDate: { month, day, year },
+        gender
       };
+  
       const updatedUsers = [...currentUsers, newUser];
   
-      // 3. Update the db.json (on jsonbin.io) with the new user list
+      // 3. Update the users list on the API
       await axios.put('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', 
         { users: updatedUsers },
         {
@@ -158,7 +161,6 @@ const SignIn = () => {
         }
       );
   
-      console.log('User saved successfully:', newUser);
       localStorage.setItem('user', JSON.stringify(newUser));
   
       // Navigate to the main page or show a success message
@@ -171,6 +173,8 @@ const SignIn = () => {
       setError('Failed to save the user');
     }
   };
+  
+  
 
 
 
@@ -273,6 +277,9 @@ const handleClick = (event) => {
           
         />
         </div>
+        <div className="flex md:hidden items-center justify-center h-0.5 w-full px-6"
+        style={{backgroundColor:theme=== 'light'?'#5e666e':'#d6d9dc',opacity:0.6}}
+        ></div>
         <select style={styles.input} value={month} onChange={(e) => setMonth(e.target.value)} required>
         <option value="">Select Month</option>
         {months.map((m, index) => <option key={index} value={m}>{m}</option>)}
@@ -296,7 +303,13 @@ const handleClick = (event) => {
         <option value="other">Other</option>
       </select>
       <input type="text" style={styles.input} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
-         <button type="submit" style={styles.button}>Sign In</button>
+         <button type="submit" style={styles.button}>
+         {loading ?
+            <div className='justify-center flex items-center gap-2'>
+              <div className="loader" style={{backgroundColor:'#26374a'}}/>
+              <p>Siggin In</p>
+            </div> : 'Sign In'}
+         </button>
          </form>
         </div>
        </div>

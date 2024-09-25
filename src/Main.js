@@ -374,7 +374,6 @@ useEffect(() => {
         }}
       >
         <Test updateTheme={updateTheme}/>
-        <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleClose}>My account</MenuItem>
         <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleCloseLogOut}><a href="/">Log Out</a></MenuItem>
       </Menu>
     </div>
@@ -1275,7 +1274,7 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
         }}
       >
         <Test updateTheme={updateTheme}/>
-        <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleClose}>My account</MenuItem>
+       
         <MenuItem sx={{fontFamily:'"Inter", sans-serif'}} className="menuItem" onClick={handleCloseLogOut}><a href="/">Log Out</a></MenuItem>
       </Menu>
    </div>
@@ -2342,31 +2341,51 @@ const EditProfile = ({ handleGoBack }) => {
 
   const handleSaveChanges = async () => {
     const updatedUser = { ...user };
-
+  
     if (password.trim() !== '') {
       updatedUser.password = password;
     }
-
+  
     if (image.trim() !== '') {
       updatedUser.avatar = image; // Update avatar with the new image URL
     }
-
   
-
+    // Save updated user in localStorage
     localStorage.setItem('user', JSON.stringify(updatedUser));
-
+  
     try {
+      // Fetch current users from the API
       const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
         headers: {
           'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
         }
       });
+  
+      const users = response.data.record.users; // Get the list of all users
+  
+      // Ensure the current user exists and update their details
+      const updatedUsers = users.map(u => (u.id === updatedUser.id ? updatedUser : u));
+  
+      // Save the updated users list back to the API
+      await axios.put(
+        'https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320',
+        { users: updatedUsers }, // Send the entire updated users list
+        {
+          headers: {
+            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      // Display success message and navigate back
       setSavedChangesMessage(true);
       setTimeout(() => {
         setSavedChangesMessage(false);
         handleGoBack();
       }, 3000);
     } catch (err) {
+      console.error(err);
       setError('Failed to save changes');
     }
   };

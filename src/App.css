@@ -116,7 +116,7 @@ body{
 }
 
 .sidebar-item {
-  padding: 8px;
+  padding: 4px;
   display: flex;
   align-items: center;
   cursor: pointer;
