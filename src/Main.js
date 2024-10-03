@@ -42,6 +42,14 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import Tooltip from '@mui/material/Tooltip';
 import { AiFillMoon } from "react-icons/ai";
 import {motion} from 'framer-motion'
+import { v4 as uuidv4 } from 'uuid'; // Import the UUID function
+import useMeasure from "react-use-measure"
+import {
+  useDragControls,
+  useMotionValue,
+  useAnimate,
+} from "framer-motion";
+
 const Main = () => {
 
   const [user, setUser] = useState(null);
@@ -50,7 +58,7 @@ const Main = () => {
     const [highlight, setHighlight] = useState('Not Highlighted');
     const [showUserProfile,setShowUserProfile]=useState(null)
     const [notifications, setNotifications] = useState([]);
-    const [messages, setMessages] = useState([]);
+  
 
     const savedTheme = localStorage.getItem('color') || 'light';
     const backgroundColor = savedTheme === 'light' ? '#eff0f1' : '#18191b';
@@ -78,8 +86,8 @@ const Main = () => {
 
    
 
-const [notificationsCount, setNotificationsCount] = useState(0);
-const [messagesCount,setMessagesCount]=useState(0)
+
+
 
     
     const toggleHighlight = (highlight) => {
@@ -94,21 +102,9 @@ const [messagesCount,setMessagesCount]=useState(0)
       }
     
       try {
-        // 1. Fetch existing posts from JSONBin
-        const response = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
-          },
-        });
-    
-        // Log the API response to understand its structure
-        console.log('API response:', response.data);
-    
-        // Extract existing posts safely, ensuring it's an array
-        const existingPosts = Array.isArray(response.data.record.posts) ? response.data.record.posts : [];
-        
-        // 2. Add the new post to the list
+        // 1. Create the new post object
         const newPost = {
+          id: uuidv4(),
           feeling,
           text,
           highlight,
@@ -118,19 +114,18 @@ const [messagesCount,setMessagesCount]=useState(0)
           createdAt: new Date().toISOString(), // Include createdAt
         };
     
-        const updatedPosts = [...existingPosts, newPost]; // Concatenate newPost
-        console.log('Updated Posts:', updatedPosts); // Debug log
+        // 2. Fetch the existing user data
+        const userResponse = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${userId}`);
+        const existingUser = userResponse.data;
     
-        // 3. Update the posts list on the API
-        await axios.put('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', 
-          { posts: updatedPosts }, // Send the updated posts array directly
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
-            },
-          }
-        );
+        // 3. Update the user's posts array
+        const updatedPosts = [...existingUser.posts, newPost];
+    
+        // 4. Send a PUT request to update the user with the new post
+        await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${userId}`, {
+          ...existingUser,
+          posts: updatedPosts,
+        });
     
         // Optionally update local storage if needed
         const existingLocalPosts = JSON.parse(localStorage.getItem('posts')) || [];
@@ -138,12 +133,13 @@ const [messagesCount,setMessagesCount]=useState(0)
         localStorage.setItem('posts', JSON.stringify(updatedLocalPosts));
     
         // You can return the new post or perform further actions
-        return newPost; 
+        return newPost; // Return the new post instead of response.data
       } catch (error) {
         console.error("Error adding post:", error);
         throw error; // Handle errors as needed
       }
     };
+    
     
     
     
@@ -168,29 +164,122 @@ const [messagesCount,setMessagesCount]=useState(0)
 const [activeTab, setActiveTab] = useState('home');
 
 
+///notification //////
 
-const handleTabChange = (tab) => {
-  if (tab === 'notification' && user) {
-    // Fetch notifications from localStorage when the notification tab is clicked
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[user.id] || [];
-    
-    // Set the notifications and clear the count
-    setNotifications(userNotifications);
-    setNotificationsCount(0); // Clear the notification count once the tab is clicked
+
+const [notificationsCount, setNotificationsCount] = useState(0);
+
+const [lastFetchTime, setLastFetchTime] = useState(null);
+
+useEffect(() => {
+  const fetchNotifications = async () => {
+    if (!user || !user.id) return; // Ensure user is available
+
+    try {
+      const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+      const usersData = response.data;
+
+      const userNotifications = usersData.find(userItem => userItem.id === user.id);
+      
+      if (userNotifications) {
+        setNotifications(userNotifications.notifications || []);
+
+        // Increment the count based on unread notifications (both requests and accepts)
+        const unreadCount = userNotifications.notifications.filter(notification => 
+          !notification.read && 
+          (notification.type === 'friendRequest' || notification.type === 'friendRequestAccepted')
+        ).length;
+        setNotificationsCount(unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const now = new Date();
+  const fiveMinutes = 5 * 60 * 1000;
+
+  // Only fetch if more than 5 minutes have passed since the last fetch
+  if (!lastFetchTime || now - lastFetchTime > fiveMinutes) {
+    fetchNotifications();
+    setLastFetchTime(now);
   }
-  if (tab === 'messages' && user) {
-    // Fetch notifications from localStorage when the notification tab is clicked
-    const storedMessages = JSON.parse(localStorage.getItem('messages')) || {};
-    const userMessages = storedMessages[user.id] || [];
-    
-    // Set the notifications and clear the count
-    setMessages(userMessages);
-    setMessagesCount(0); // Clear the notification count once the tab is clicked
+
+  // Optionally poll for notifications every minute
+  const intervalId = setInterval(fetchNotifications, 60000); // 1 minute polling
+  return () => clearInterval(intervalId); // Cleanup on unmount
+}, [user, lastFetchTime]);
+
+
+////// message .//// 
+
+
+
+
+
+const [messagesCount, setMessagesCount] = useState(0); // Unread messages count
+const [messages, setMessages] = useState([]); // Messages state
+
+
+  const fetchMessages = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/${user.id}`); // Get the user by ID
+
+      // Assuming the messages are in the user data
+      const userMessages = response.data.messages; // Access messages directly from user data
+
+      setMessages(userMessages);
+
+      // Step 1: Filter unread messages
+      const unreadMessagesCount = userMessages.filter((msg) => !msg.read).length;
+
+      // Step 2: Update messages count state
+      setMessagesCount(unreadMessagesCount);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+; // Depend on 'user' instead of 'currentUser'
+
+
+////////
+const apiUrl = "https://66edb996380821644cddd154.mockapi.io/api/users";
+
+const handleTabChange = async (tab) => {
+  if (!user || !user.id) {
+    console.error('User is not defined or user.id is missing');
+    return;
   }
+
+  if (tab === 'notification') {
+    // Fetch notifications from the API when the notifications tab is clicked
+    try {
+      const response = await axios.get(`${apiUrl}/${user.id}`);
+      const userData = response.data;
+      setNotifications(userData.notifications || []);
+      
+      // Count unread notifications
+      const unreadCount = userData.notifications.filter(notification => !notification.read).length;
+      setNotificationsCount(unreadCount);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }
+
+  if (tab === 'messages') {
+    // Fetch messages logic here
+  }
+
+
+  if (tab === 'messages') {
+    fetchMessages(); 
+  }
+
   setActiveTab(tab);
-  setEditProfile(false)
+  setEditProfile(false);
 };
+
+
 const [editProfile,setEditProfile]=useState(false)
 
 const handleGoBack = ()=>{
@@ -491,7 +580,7 @@ useEffect(() => {
         {activeTab === 'searchplusExplore' && <SearchPlusExplore />}
         {activeTab === 'explore' && <ExploreComponent/>}
         {activeTab === 'messages' && <div><SendMessage user={showUserProfile}/></div>}
-        {activeTab === 'notification' && <Notifications user={user} />}
+        {activeTab === 'notification' && <Notifications user={user} setNotifications={setNotifications} notifications={notifications}/>}
         {activeTab === 'create' &&   <Create highlight={highlight} toggleHighlight={toggleHighlight} user={user} handleAddPost={handleAddPost} />}
         <div className="empty3 block lg:hidden"></div>
       </div>
@@ -511,58 +600,71 @@ const HomeComponent = () => {
   const [bookmarks, setBookmarks] = useState({});
   const [likedPosts, setLikedPosts] = useState({});
 
-  // Fetch friends and their posts
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch users from JSONBin
-        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
-
-        // Set all users
-        setAllUsers(usersResponse.data.record.users || []);
-        
-        // Fetch posts from localStorage
-        const storedUser = JSON.parse(localStorage.getItem('user'));
-        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-
-        if (storedUser && storedUser.id && storedFriends[storedUser.id]) {
-          const friendIds = storedFriends[storedUser.id]; // IDs of the user's friends
-
-          // Fetch posts from localStorage
-          const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
-
-          // Filter posts from friends only
-          const friendPosts = storedPosts.filter(post => friendIds.includes(post.userId));
-          setAllPosts(friendPosts);
-
-          // Set friends if you want to use them elsewhere
-          setFriends(usersResponse.data.record.users.filter(user => friendIds.includes(user.id)) || []);
-        } else {
-          // If no friends or no user, fetch all posts
-          const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
-            headers: {
-              'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-            }
-          });
-          
-          // Set all posts from fetched posts
-          setAllPosts(postsResponse.data.record.posts || []);
+        const usersResponse = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+        const usersData = usersResponse.data || [];
+  
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        if (!currentUser || !currentUser.id) {
+          throw new Error("No logged-in user found.");
         }
+  
+        const currentUserFriendships = usersData.find(user => user.id === currentUser.id)?.friendships || [];
+        const friendIds = currentUserFriendships
+          .filter(friend => friend.status === "accepted")
+          .map(friend => friend.friendId);
+  
+        if (friendIds.length === 0) {
+          console.warn("No friends found for the current user.");
+          setAllPosts([]); 
+          return;
+        }
+  
+        const friendPosts = [];
+        for (const friendId of friendIds) {
+          const friend = usersData.find(user => user.id === friendId);
+          if (friend && friend.posts) {
+            friendPosts.push(
+              ...friend.posts.map(post => ({
+                ...post,
+                userNickname: friend.nickname, 
+                userAvatar: friend.avatar, 
+              }))
+            );
+          }
+        }
+  
+        const privateFriendPosts = usersData
+          .filter(user => user.is_private && friendIds.includes(user.id))
+          .flatMap(user =>
+            user.posts.map(post => ({
+              ...post,
+              userNickname: user.nickname,
+              userAvatar: user.avatar,
+            }))
+          );
+  
+        setAllPosts([...friendPosts, ...privateFriendPosts]);
+  
+        console.log([...friendPosts, ...privateFriendPosts]); // Log posts with avatar and nickname
+  
       } catch (err) {
         setError('Failed to fetch data');
-        console.error(err); // Log error for debugging
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, []);
+  
+  
+  
+
 
   // Handle bookmark and like actions
   const handleToggleBookmark = (postId) => {
@@ -646,49 +748,57 @@ const HomeComponent = () => {
       <div className="empty3 -mt-3"></div>
       {!loading && !error && allPosts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {allPosts.map((post) => {
-            const user = friends.find(friend => friend.id === post.userId) || { nickname: 'Unknown User' };
+         {allPosts.map((post) => {
+  // Use userNickname and userAvatar directly from the post object
+  const userNickname = post.userNickname || 'Unknown User';
+  const userAvatar = post.userAvatar;
 
-            return (
-              <div
-                key={post.id}
-                className="post p-4 flex flex-col"
-                style={{
-                  backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-                  borderRadius: '5px',
-                  border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-                }}
-              >
-                <div className="flex justify-between gap-2 items-center -ml-2">
-                  <div className="flex gap-2 items-center -mt-2 ml-1">
-                    {user.avatar && (
-                      <Avatar
-                        src={user.avatar}
-                        alt={`${user.nickname}'s avatar`}
-                        className="w-8 h-8 rounded-full"
-                        style={{ objectFit: 'cover' }}
-                      />
-                    )}
-                    <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
-                      <b>{user.nickname}</b>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col mt-4">
-                  <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
-                  <p>{post.text}</p>
-                </div>
-                <div className="mt-4">
-                  <Checkbox
-                    icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                    checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                    checked={!!likedPosts[post.id]}
-                    onChange={() => handleToggleBookmark(post.id)}
-                  />
-                </div>
-              </div>
-            );
-          })}
+  return (
+    <div
+      key={post.id}
+      className="post p-4 flex flex-col"
+      style={{
+        backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+        borderRadius: '5px',
+        border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+      }}
+    >
+      <div className="flex justify-between gap-2 items-center -ml-2">
+        <div className="flex gap-2 items-center -mt-2 ml-1">
+        {userAvatar ? (
+        <Avatar
+          src={userAvatar}
+          alt={`${userNickname}'s avatar`}
+          className="w-8 h-8 rounded-full"
+          style={{ objectFit: 'cover' }}
+        />
+      ) : (
+        <Avatar
+          alt="Unknown User's avatar"
+          className="w-8 h-8 rounded-full bg-gray-400"
+        />
+      )}
+          <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
+          <b>{post.userNickname}</b>
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col mt-4">
+        <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+        <p>{post.text}</p>
+      </div>
+      <div className="mt-4 flex justify-end items-end w-full">
+        <Checkbox
+          icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+          checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+          checked={!!likedPosts[post.id]}
+          onChange={() => handleToggleBookmark(post.id)}
+        />
+      </div>
+    </div>
+  );
+})}
+
           <div className="empty"></div>
         </div>
       ) : (
@@ -715,28 +825,19 @@ const ExploreComponent = () => {
   const [error, setError] = useState(null);
   const [likedPosts, setLikedPosts] = useState({});
   const savedTheme = localStorage.getItem('color') || 'light';
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch users from JSONBin
-        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
+        // Fetch all users (including their posts) from the single API endpoint
+        const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
 
-        // Fetch posts from JSONBin
-        const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
+        const users = response.data || []; // Directly access the users array
+        setAllUsers(users); // Save all users
 
-        // Set all users and posts
-        setAllUsers(usersResponse.data.record.users || []);
-        setAllPosts(postsResponse.data.record.posts || []);
+        // Extract posts from each user and combine them into a single array
+        const posts = users.flatMap(user => user.posts || []);
+        setAllPosts(posts); // Save all posts
       } catch (err) {
         setError('Failed to fetch data');
         console.error(err); // Log error for debugging
@@ -747,7 +848,7 @@ const ExploreComponent = () => {
 
     fetchData();
   }, []);
-
+  
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (storedUser && typeof storedUser === 'object') {
@@ -894,23 +995,15 @@ const SearchPlusExplore = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch users from JSONBin
-        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
+        // Fetch all users (including their posts) from the single API endpoint
+        const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
 
-        // Fetch posts from JSONBin
-        const postsResponse = await axios.get('https://api.jsonbin.io/v3/b/66f47526ad19ca34f8ad7cee', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
+        const users = response.data || []; // Directly access the users array
+        setAllUsers(users); // Save all users
 
-        // Set all users and posts
-        setAllUsers(usersResponse.data.record.users || []);
-        setAllPosts(postsResponse.data.record.posts || []);
+        // Extract posts from each user and combine them into a single array
+        const posts = users.flatMap(user => user.posts || []);
+        setAllPosts(posts); // Save all posts
       } catch (err) {
         setError('Failed to fetch data');
         console.error(err); // Log error for debugging
@@ -921,7 +1014,6 @@ const SearchPlusExplore = () => {
 
     fetchData();
   }, []);
-
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -943,7 +1035,7 @@ const SearchPlusExplore = () => {
     } else {
       const lowerCaseQuery = searchQuery.toLowerCase();
       const filtered = allUsers.filter(user =>
-        user.nickname.toLowerCase().startsWith(lowerCaseQuery)
+        user.nickname?.toLowerCase().startsWith(lowerCaseQuery) // Use optional chaining
       );
       setFilteredUsers(filtered);
     }
@@ -990,10 +1082,11 @@ const SearchPlusExplore = () => {
       return updatedLikedPosts;
     });
   };
+  const [searchedUserId, setSearchedUserId] = useState(null);
 
-  const showUser = (user) => {
+   const showUser = (user) => {
     setShowUserProfile(user);
-
+    setSearchedUserId(user.id); // Set the searched user ID here
     // Filter the posts by the selected user's ID
     const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
     const userPosts = storedPosts.filter(post => post.userId === user.id);
@@ -1027,6 +1120,7 @@ const SearchPlusExplore = () => {
             allUsers={allUsers}
             posts={userPosts}
             user={showUserProfile}
+            searchedUserId={searchedUserId}
             onBack={handleBackToSearch}
           />
         ) : (
@@ -1051,48 +1145,56 @@ const SearchPlusExplore = () => {
                   {loading && <p>Loading users...</p>}
                   {error && <p>{error}</p>}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    {allPosts.map((post) => {
-                      const user = allUsers.find(user => user.id === post.userId) || { nickname: 'Unknown User' };
-                      return (
-                        <div
-                          key={post.id}
-                          className="post p-4 flex flex-col"
-                          style={{
-                            backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-                            borderRadius: '5px',
-                            border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-                          }}
-                        >
-                          <div className="flex justify-between gap-2 items-center -ml-2">
-                            <div className="flex gap-2 items-center -mt-2 ml-1">
-                              {user.avatar && (
-                                <Avatar
-                                  src={user.avatar}
-                                  alt={`${user.nickname}'s avatar`}
-                                  className="w-8 h-8 rounded-full"
-                                  style={{ objectFit: 'cover' }}
-                                />
-                              )}
-                              <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
-                                <b>{user.nickname}</b>
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col mt-4">
-                            <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
-                            <p>{post.text}</p>
-                          </div>
-                          <div className="mt-4">
-                            <Checkbox
-                              icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                              checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                              checked={!!likedPosts[post.id]}
-                              onChange={() => handleToggleBookmark(post.id)}
-                            />
+                  {allPosts.map((post) => {
+  // Find the user by ID, default to an object with a nickname
+                    const user = allUsers.find(user => user.id === post.userId) || { nickname: 'Unknown User', avatar: '' };
+
+                    return (
+                      <div
+                        key={post.id}
+                        className="post py-6 px-8 flex flex-col "
+                        style={{
+                          backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+                          borderRadius: '5px',
+                          border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+                        }}
+                      >
+                        <div className="flex justify-between gap-2 items-center -ml-5">
+                          <div className="flex gap-2 items-center -mt-2 ml-1">
+                            {user.avatar ? (
+                              <Avatar
+                                src={user.avatar}
+                                alt={`${user.nickname}'s avatar`}
+                                className="w-8 h-8 rounded-full"
+                                style={{ objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <Avatar
+                                alt="Unknown User's avatar"
+                                className="w-8 h-8 rounded-full bg-gray-400" // Fallback style for unknown users
+                              />
+                            )}
+                            <p style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>
+                              <b>{user.nickname}</b>
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
+                        <div className="flex flex-col mt-4">
+                          <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
+                          <p>{post.text}</p>
+                        </div>
+                        <div className="mt-4 flex justify-end items-end w-full">
+                          <Checkbox
+                            icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                            checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
+                            checked={!!likedPosts[post.id]}
+                            onChange={() => handleToggleBookmark(post.id)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
                   </div>
                 </>
               ) : (
@@ -1105,22 +1207,24 @@ const SearchPlusExplore = () => {
                       key={user.id}
                     >
                       <div className="flex gap-3" style={{ zIndex: 0 }}>
-                        <Avatar src={user.avatar} alt={`${user.nickname}'s avatar`} style={{ width: '50px', height: '50px', zIndex: 0 }} />
+                        <Avatar src={user.avatar} alt={`${user.nickname || 'Unknown User'}'s avatar`} style={{ width: '50px', height: '50px', zIndex: 0 }} />
                         <div className="flex flex-col gap-2">
-                          <p className="font-semibold">{user.nickname}</p>
+                          <p className="font-semibold">{user.nickname || 'Unknown User'}</p> {/* Fallback here too */}
                           <p className="font-light text-sm" style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
+                  // Handle case where no users match the search
                   <div className="flex flex-col items-center justify-center mt-12">
                     <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
                       <PersonIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
                     </div>
-                    <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No users</p>
+                    <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No users found</p>
                   </div>
                 )
+                
               )}
             </div>
           </>
@@ -1135,6 +1239,8 @@ const SearchPlusExplore = () => {
 const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => {
 
   const [user, setUser] = useState(null);
+  const [allPosts,setAllPosts]=useState([])
+  const [usersPost,setUserPosts]=useState([])
   const[allUsers,setAllUsers]=useState([])
   const [password, setPassword] = useState('');
   const [theme, setTheme] = useState('light');
@@ -1200,67 +1306,189 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
 
   // Fetch users and filter friends' data when the modal is open
   useEffect(() => {
-    const fetchUsers = async () => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      setUser(storedUser); // Correctly set user from localStorage
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
+        // Fetch users from JSONBin
+        const usersResponse = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
           headers: {
             'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
           }
         });
-        const users = response.data.record.users || [];
-        setAllUsers(users);
-  
-        // Fetch stored friends from localStorage
-        const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-        const currentUser = JSON.parse(localStorage.getItem('user'));
-        const userFriends = storedFriends[currentUser.id] || [];
-  
-        // Filter to show only friends
-        const friendsDetails = users.filter(user => userFriends.includes(user.id));
-        setFriendsData(friendsDetails);
+
+        // Fetch posts from JSONBin
+        const postsResponse = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/posts', {
+         
+        });
+
+        // Set all posts
+        setAllPosts(postsResponse.data.record.posts || []);
+
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (storedUser) {
+      setUser(storedUser); // Correctly set user from localStorage
+    }
+        // Filter posts created by the logged-in user
+        const currentUserNickname = storedUser.nickname; // Get the logged-in user's nickname
+        const filteredUserPosts = postsResponse.data.record.posts.filter(post => post.userNickname === currentUserNickname);
+
+        setUserPosts(filteredUserPosts); // Set user's own posts
       } catch (err) {
-        setError('Failed to fetch users');
+        setError('Failed to fetch data');
+        console.error(err); // Log error for debugging
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
-  }, [friendsChecker]);
+
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
   
   
   
 
-  const handleRemovePost = (postId, userId) => {
-    const updatedPosts = posts.filter(post => post.id !== postId || post.userId !== userId);
-    setPosts(updatedPosts);
-    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  const handleRemovePost = async (postId, userId) => {
+    try {
+      // 1. Fetch existing user data to access the posts
+      const userResponse = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${userId}`);
+      const existingUser = userResponse.data;
+  
+      // 2. Filter out the post with the matching ID from the user's posts
+      const updatedPosts = existingUser.posts.filter(post => post.id !== postId);
+  
+      // 3. Send a PUT request to update the user with the new posts array
+      await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${userId}`, {
+        ...existingUser,
+        posts: updatedPosts,
+      });
+  
+      // 4. Optionally update local storage
+      const existingLocalPosts = JSON.parse(localStorage.getItem('posts')) || [];
+      const updatedLocalPosts = existingLocalPosts.filter(post => post.id !== postId);
+      localStorage.setItem('posts', JSON.stringify(updatedLocalPosts));
+  
+      // 5. Update the UI state (if you are managing posts in state)
+      setAllPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+  
+      console.log('Post removed successfully.');
+    } catch (error) {
+      console.error("Error removing post:", error);
+      throw error; // Handle errors as needed
+    }
   };
+  
+  
+  
+  
 
-  const handleSaveChanges = (postId, newFeeling, newText) => {
-    const updatedPosts = posts.map((post) =>
-      post.id === postId && post.userId === user.id
-        ? { ...post, feeling: newFeeling, text: newText }
-        : post
-    );
-    setPosts(updatedPosts);
-    localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  const handleSaveChanges = async (postId, newFeeling, newText) => {
+    try {
+      // 1. Fetch the existing post data
+      const postResponse = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${user.id}`);
+      const existingUser = postResponse.data;
+  
+      // 2. Find the post to be updated
+      const postToUpdate = existingUser.posts.find(post => post.id === postId);
+      
+      // 3. If the post is found, update its feeling and text
+      if (postToUpdate) {
+        postToUpdate.feeling = newFeeling;
+        postToUpdate.text = newText;
+  
+        // 4. Update the user's posts array on the API
+        await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${user.id}`, {
+          ...existingUser,
+          posts: existingUser.posts,
+        });
+  
+        // 5. Update local state and local storage
+        const updatedPosts = existingUser.posts;
+        setPosts(updatedPosts);
+        localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  
+        console.log('Post updated successfully.');
+      } else {
+        console.error('Post not found.');
+      }
+    } catch (error) {
+      console.error("Error saving changes:", error);
+    }
   };
+  
+
+
+  const [searchedUserFriendCount, setSearchedUserFriendCount] = useState(0);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-
-    }
-   
+    const checkFriendStatus = async () => {
+      // Retrieve the current user's data from localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser ? currentUser.id : null;
   
-
+      if (!currentUserId) {
+        console.error("No current user found");
+        return;
+      }
+  
+      try {
+        // Fetch all users from MockAPI
+        const usersResponse = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+        const usersData = usersResponse.data; // Assuming the response is an array of users
+  
+        // Find the current user from the fetched users
+        const currentUserData = usersData.find(user => user.id === currentUserId);
+  
+        if (currentUserData && Array.isArray(currentUserData.friendships)) {
+          // Filter out friendships where the status is not "accepted"
+          const acceptedFriends = currentUserData.friendships
+            .filter(friendship => friendship.status === "accepted") // Only accepted friendships
+            .map(friendship => {
+              // Map the friendId to the actual user object
+              return usersData.find(user => user.id === friendship.friendId);
+            })
+            .filter(friend => friend); // Filter out any undefined values (in case a friend ID isn't found)
+  
+          // Set the friend count and the friends list
+          setSearchedUserFriendCount(acceptedFriends.length);
+          setFriendsData(acceptedFriends);
+        } else {
+          // If no friendships found, set empty data
+          setSearchedUserFriendCount(0);
+          setFriendsData([]);
+        }
+      } catch (error) {
+        // Handle errors, such as failed API calls
+        console.error("Failed to fetch data:", error);
+        setSearchedUserFriendCount(0);
+        setFriendsData([]);
+      }
+    };
+  
+    checkFriendStatus(); // Call the function on component mount
   }, []);
+  
+  
+  
+  
+  
+  
+  
 
   if (!user) {
     return <div className="flex items-center justify-center">Loading user data...</div>;
   }
+
+
 
  
 
@@ -1338,9 +1566,9 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
    </div>
    <div className="flex items-center gap-4 md:gap-6">
            <p className="flex gap-2">{userPosts.length} <b className="font-medium md:font-semibold ml-1">posts</b> </p>
-           <p className="flex gap-2 cursor-pointer" onClick={()=>setFriendsChecker(true)}>{friendCount} <b className="font-semibold ml-1">friends</b></p>
+           <p className="flex gap-2 cursor-pointer" onClick={()=>setFriendsChecker(true)}> {searchedUserFriendCount} <b className="font-semibold ml-1">friends</b></p>
          </div>
-    <p>{user.description}</p> 
+    <p className="font-light text-sm" style={{color:savedTheme === 'light'?'#5e666e':'#d6d9dc'}}>{user.description}</p> 
    </div>
     </div>
 
@@ -1356,44 +1584,50 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
   {userPosts.length === 0 ? (
     <div className="flex flex-col  items-center justify-center mt-12">
     <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-    <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px'}}/>
+   <div className="hidden md:block">
+   <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px'}}/>
+   </div>
+   <div className="block md:hidden">
+   <CameraAltIcon sx={{width:'85px',height:'85px',padding:'20px'}}/>
+   </div>
     </div>
-      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-sm md:text-xl font-semibold mt-2">No posts yet</p>
     </div>
   ) : (
     <div>
-      {userPosts.map((post) => (
+     {userPosts.map((post) => (
+  <div
+    key={post.id} // Use post.id instead of post.createdAt
+    className="post p-4 mb-4 flex justify-between"
+    style={{
+      backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
+      borderRadius: '5px',
+      border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
+    }}
+  >
+    <div className="flex flex-col">
+      {post.highlight === 'Highlighted' && (
         <div
-          key={post.id}
-          className="post p-4 mb-4 flex justify-between"
-          style={{
-            backgroundColor: savedTheme === 'light' ? '#fbfbfb' : '#2d2d2d',
-            borderRadius: '5px',
-            border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45',
-          }}
+          className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
+          style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
         >
-          <div className="flex flex-col">
-            {post.highlight === 'Highlighted' && (
-              <div
-                className="high font-semibold text-xs p-1 w-fit -ml-4 -mt-4"
-                style={{ backgroundColor: '#a0b6cf', color: '#26374a' }}
-              >
-                Highlighted
-              </div>
-            )}
-            <p><strong>Feeling:</strong> {post.feeling}</p>
-            <p>{post.text}</p>
-          </div>
-          <div className="flex gap-4">
-            <button variant="contained" color="primary" onClick={() => handleClickShow(post)}>
-              <SettingsIcon />
-            </button>
-            <button variant="contained" color="secondary" onClick={() => handleRemovePost(post.id, user.id)}>
-              <CloseIcon />
-            </button>
-          </div>
+          Highlighted
         </div>
-      ))}
+      )}
+      <p><strong>Feeling:</strong> {post.feeling}</p>
+      <p>{post.text}</p>
+    </div>
+    <div className="flex gap-4">
+      <button variant="contained" color="primary" onClick={() => handleClickShow(post)}>
+        <SettingsIcon />
+      </button>
+      <button variant="contained" color="secondary" onClick={() => handleRemovePost(post.id,user.id)}>
+        <CloseIcon />
+      </button>
+    </div>
+  </div>
+))}
+
     </div>
   )}
 </div>
@@ -1407,50 +1641,40 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
         <ModalPost open={open} post={selected}   handleSaveChanges={handleSaveChanges}  handleClosePost={handleClosePost}/>
         }
         {friendsChecker && 
-        <div>
-         <Modal
-  open={friendsChecker}
-  onClose={() => setFriendsChecker(false)}
->
-  <Box sx={style}>
-    <h2 className="mb-6 font-bold text-2xl">Friends List</h2>
-    {loading ? (
-      <p>Loading...</p>
-    ) : error ? (
-      <p>{error}</p>
-    ) : friendsData.length > 0 ? (
-      friendsData.map((friend) => (
-        <div
-          key={friend.id}
-          className="flex gap-4 mb-4"
-          style={{
-            borderBottom: '1px solid #ccc',
-            paddingBottom: '8px',
-          }}
-        >
-          <Avatar
-            sx={{ width: '50px', height: '50px' }}
-            alt={friend.nickname}
-            src={friend.avatar || ''}
-          />
-          <div>
-            <h3 className="font-semibold">{friend.nickname}</h3>
-            {friend.description ? (
-              <p className="font-light text-sm">{friend.description}</p>
-            ) : (
-              <p className="font-light">No description yet</p>
-            )}
+  <Modal open={friendsChecker} onClose={() => setFriendsChecker(false)}>
+    <Box sx={style}>
+      <h2 className="mb-6 font-bold text-2xl">Friends List</h2>
+      {friendsData.length > 0 ? (
+       friendsData.map(friend => (
+          <div
+            key={friend.id}
+            className="flex gap-4 mb-4"
+            style={{
+              borderBottom: '1px solid #ccc',
+              paddingBottom: '8px',
+            }}
+          >
+            <Avatar
+              sx={{ width: '50px', height: '50px' }}
+              alt={friend.nickname}
+              src={friend.avatar || ''}
+            />
+            <div>
+              <h3 className="font-semibold">{friend.nickname}</h3>
+              {friend.description ? (
+                <p className="font-light text-sm">{friend.description}</p>
+              ) : (
+                <p className="font-light">No description yet</p>
+              )}
+            </div>
           </div>
-        </div>
-      ))
-    ) : (
-      <p>No friends found.</p>
-    )}
-  </Box>
-</Modal>
-
-        </div>
-        }
+        ))
+      ) : (
+        <p>No friends found.</p>
+      )}
+    </Box>
+  </Modal>
+}
    </div>
   )
 }
@@ -1469,25 +1693,21 @@ const Search = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        });
-
-        // Assuming users and posts are stored in the response
-        const data = response.data.record;
-        setAllUsers(data.users || []);  // Set the fetched users
-        setAllPosts(data.posts || []);  // Set the fetched posts
+        const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+        
+        // Assuming users are stored directly in response.data (no 'record' wrapper)
+        const users = response.data;
+        setAllUsers(users || []);  // Set the fetched users
       } catch (err) {
-        setError('Failed to fetch users and posts');
+        setError('Failed to fetch users');
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, []);
+  
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -1501,9 +1721,12 @@ const Search = () => {
     }
   }, [searchQuery, allUsers]);
 
+
+  const [searchedUserId, setSearchedUserId] = useState(null);
+
   const showUser = (user) => {
     setShowUserProfile(user);
-
+    setSearchedUserId(user.id); // Set the searched user ID here
     // Filter the posts by the selected user's ID
     const storedPosts = JSON.parse(localStorage.getItem('posts')) || [];
     const userPosts = storedPosts.filter(post => post.userId === user.id);
@@ -1541,6 +1764,7 @@ const Search = () => {
           allUsers={allUsers}
           posts={userPosts}
           user={showUserProfile}
+          searchedUserId={searchedUserId} // Pass it here
           onBack={handleBackToSearch}
         />
       ) : (
@@ -1605,7 +1829,7 @@ const Search = () => {
 
 
 
-const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user' from props
+const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // Destructure 'user' from props
   const savedTheme = localStorage.getItem('color') || 'light';
 
   // Dummy data for posts, adjust as needed
@@ -1775,35 +1999,90 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     }
   }, [user.id]);
 
-  const handleAddFriend = () => {
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    if (!currentUser) return;
-  
-    const currentUserId = currentUser.id;
-    const currentUserNickname = currentUser.nickname;
-    const postOwnerId = user.id;
-  
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[postOwnerId] || [];
-  
-    // Check if there's already a pending request
-    if (userNotifications.some(notification => notification.senderNickname === currentUserNickname && notification.action === 'Sent a friend request')) {
+const handleAddFriend = async () => {
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+  if (!currentUser) return; // Ensure the user is logged in
+
+  const currentUserId = currentUser.id;
+  const currentUserNickname = currentUser.nickname;
+  const searchedUserId = user.id; // Assuming `user` is the searched user
+
+  try {
+    // Fetch all users
+    const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+    const data = response.data; // Array of user records
+
+    // Find the current user and the searched user
+    const currentUserRecord = data.find((u) => u.id === currentUserId);
+    const searchedUserRecord = data.find((u) => u.id === searchedUserId);
+
+    if (!searchedUserRecord || !currentUserRecord) {
+      console.error("Users not found");
       return;
     }
-  
-    userNotifications.push({
-      senderId: currentUserId, // Add senderId for later use
-      senderNickname: currentUserNickname,
-      action: 'Sent a friend request',
+
+    // Check if a friend request has already been sent
+    const existingRequest = searchedUserRecord.friendships.find((friendship) => friendship.friendId === currentUserId);
+    if (existingRequest) {
+      console.log("Friend request already sent or you are already friends");
+      return;
+    }
+
+    // Create a notification for the friend request
+    const notificationMessage = {
+      id: new Date().getTime().toString(), // Unique ID for the notification
+      senderId: currentUser.id,
+      senderNickname: currentUser.nickname,
+      action: `${currentUser.nickname} has sent you a friend request.`,
       timestamp: new Date().toISOString(),
-      id: Date.now(),
+    };
+
+    // Add notification to the searched user's notifications
+    searchedUserRecord.notifications.push(notificationMessage);
+    // Add the current user to the searched user's friendships as "pending"
+    searchedUserRecord.friendships.push({
+      friendId: currentUserId,
+      status: "pending" // Friend request is pending
     });
-  
-    storedNotifications[postOwnerId] = userNotifications;
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-  
+
+    // Optionally, add the searched user to the current user's friendships as "requested"
+    currentUserRecord.friendships.push({
+      friendId: searchedUserId,
+      status: "requested" // Current user has sent a request
+    });
+
+    // Add notification to the searched user's notifications
+    searchedUserRecord.notifications.push(sendNotification);
+
+    // Update both users in the API
+    await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${searchedUserId}`, searchedUserRecord);
+    await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUserId}`, currentUserRecord);
+
+    // Update UI with friend request status
     setFriendStatus('Request Sent');
-  };
+  } catch (error) {
+    console.error("Failed to send friend request:", error);
+  }
+};
+
+
+// Function to send a notification
+const sendNotification = async (userId, notification) => {
+  try {
+    // Send notification to the user (Assuming there's an API endpoint to handle notifications)
+    await axios.post(`https://66edb996380821644cddd154.mockapi.io/api/notifications`, {
+      userId,
+      ...notification,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Failed to send notification:", error);
+  }
+};
+
+  
+  
+  
 
   const [ModalConfirmation,setModalConfirmation]=useState(false)
 
@@ -1813,34 +2092,58 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     setModalConfirmation(false)
   }
 
-  const handleRemoveFriend = () => {
+  const handleRemoveFriend = async () => {
     const currentUser = JSON.parse(localStorage.getItem('user'));
     if (!currentUser) return;
   
+    const apiUrl = "https://66edb996380821644cddd154.mockapi.io/api/posts";
+    // Replace with your actual key
+  
+    // Fetch friendships from the API
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(apiUrl, {
+          
+        });
+        return response.data.record; // Return the record from the response
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        return null; // Return null if there's an error
+      }
+    };
+  
+    // Update the JSON Bin with new data
+    const updateData = async (data) => {
+      try {
+        await axios.put(apiUrl, data, {
+         
+        });
+      } catch (error) {
+        console.error("Error updating data:", error);
+      }
+    };
+
     const currentUserId = currentUser.id;
     const postOwnerId = user.id;
   
-    // Retrieve and update the friends data from local storage
-    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-    
-    // Remove the friend from the current user's friend list
-    if (storedFriends[currentUserId]) {
-      storedFriends[currentUserId] = storedFriends[currentUserId].filter(friendId => friendId !== postOwnerId);
-    }
-    
-    // Remove the current user from the friend's friend list
-    if (storedFriends[postOwnerId]) {
-      storedFriends[postOwnerId] = storedFriends[postOwnerId].filter(friendId => friendId !== currentUserId);
+    const friendships = await fetchData();
+    if (!friendships) return;
+  
+    // Remove friend from current user's friends list
+    let userFriendship = friendships.friendships.find(f => f.userId === currentUserId);
+    if (userFriendship) {
+      userFriendship.friends = userFriendship.friends.filter(friendId => friendId !== postOwnerId);
     }
   
-    // Save the updated friends list back to local storage
-    localStorage.setItem('friends', JSON.stringify(storedFriends));
+    // Remove current user from the friend's friends list
+    let friendFriendship = friendships.friendships.find(f => f.userId === postOwnerId);
+    if (friendFriendship) {
+      friendFriendship.friends = friendFriendship.friends.filter(friendId => friendId !== currentUserId);
+    }
   
-    // Update the friend status to 'Add Friend' after removal
+    await updateData(friendships); // Update the JSON Bin
     setFriendStatus('Add Friend');
-    
-    // Close the confirmation modal if applicable
-    setModalConfirmation(false);
+    setModalConfirmation(false); // Close the confirmation modal if applicable
   };
 
 
@@ -1915,6 +2218,66 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
     console.log('Message sent to', recipientUser.nickname);
     
   };
+
+
+///// friendship status //// signify if you are friend with other user /////
+
+   // Initialize with the user's ID
+   const [searchedUserFriendCount, setSearchedUserFriendCount] = useState(0);
+
+   useEffect(() => {
+    const checkFriendStatus = async () => {
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser ? currentUser.id : null;
+  
+      try {
+        const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
+        const data = response.data;
+  
+        // Find the current user's and searched user's records
+        const currentUserRecord = data.find(record => record.id === currentUserId);
+        const searchedUserRecord = data.find(record => record.id === searchedUserId);
+  
+        // Check friendships for both users
+        const currentUserFriendship = currentUserRecord ? currentUserRecord.friendships : [];
+        const searchedUserFriendship = searchedUserRecord ? searchedUserRecord.friendships : [];
+  
+        // Check if the current user is in the searched user's friendships
+        const isFriend = searchedUserFriendship.some(friendship => 
+          friendship.friendId === currentUserId && friendship.status === 'accepted'
+        );
+  
+        // Check if there is a pending friend request
+        const isRequestSent = searchedUserFriendship.some(friendship => 
+          friendship.friendId === currentUserId && friendship.status === 'pending'
+        );
+  
+        // Update friend status based on the checks
+        if (isFriend) {
+          setFriendStatus('Friends');
+        } else if (isRequestSent) {
+          setFriendStatus('Request Sent');
+        } else {
+          setFriendStatus('Add Friend');
+        }
+  
+        // Set the friend count for the searched user
+        setSearchedUserFriendCount(searchedUserFriendship.filter(friendship => friendship.status === 'accepted').length);
+  
+      } catch (error) {
+        console.error("Failed to fetch friendships:", error);
+      }
+    };
+  
+    if (searchedUserId) {
+      checkFriendStatus();
+    }
+  }, [searchedUserId]);
+  
+
+  const [open,setOpen]=useState(false)
+
+
   return (
     <div>
       {showMessage ? 
@@ -1944,9 +2307,9 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
        
         </div>
         {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 relative flex w-6 h-6 rounded-full ml-14 -mt-5"
-         style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         style={{backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ></span></Tooltip> : <Tooltip title="Offline"><span className="22 relative flex items-center w-6 h-6 rounded-full ml-14 -mt-5"
-         style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
+         style={{backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
         </div>
        </div>
@@ -1957,7 +2320,9 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
          </div>
          <div className="flex items-center gap-6">
          <div className="flex-col items-center md:flex-row text-center">{postList.length} <b className="font-semibold ml-1">posts</b></div>
-           <div className="flex-col items-center md:flex-row text-center">{friendCount} <b className="font-semibold ml-1">friends</b></div>
+         <div className="flex-col items-center md:flex-row text-center">
+          {searchedUserFriendCount} <b className="font-semibold ml-1">friends</b>
+        </div>
          </div>
          <p style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
          <div className="flex gap-4 mt-8 md:mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
@@ -1985,11 +2350,16 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
          </div>
          {user.isPrivate && friendStatus !== 'Friends' ? (
   // If the user is private and the viewer is not a friend, show a message or empty state
-  <div className="flex flex-col items-center justify-center mt-12">
+  <div className="flex flex-col items-center justify-center mt-12 -ml-28 md:-ml-0">
     <div style={{borderRadius:"100%",border:savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45'}} className="camera-wrapper">
-      <LockIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+     <div className="hidden md:block">
+     <LockIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+     </div>
+     <div className="block md:hidden">
+     <LockIcon sx={{width:'85px',height:'85px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+     </div>
     </div>
-    <p style={{color:savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-xl font-semibold mt-2">This user's posts are private</p>
+    <p style={{color:savedTheme === 'light' ? '#232629' : '#fbfbfb'}} className="text-sm md:text-xl font-semibold mt-2">This user's posts are private</p>
   </div>
 ) : (
   posts.length > 0 ? (
@@ -2029,11 +2399,16 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
      
     ))
   ) : (
-    <div className="flex flex-col items-center justify-center mt-12 mb-4  -ml-24 w-full">
+    <div className="flex flex-col items-center justify-center mt-12 mb-4  -ml-20 w-full">
       <div style={{borderRadius:"100%",border:savedTheme ==='light'?'3px solid #dddfe2':'3px solid #3b3f45'}} className="camera-wrapper">
-        <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+       <div className="hidden md:block">
+       <CameraAltIcon sx={{width:'125px',height:'125px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+       </div>
+       <div className="block md:hidden">
+       <CameraAltIcon sx={{width:'85px',height:'85px',padding:'20px',color:savedTheme ==='light'?'#232629':'#fbfbfb'}}/>
+       </div>
       </div>
-      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-xl font-semibold mt-2">No posts yet</p>
+      <p style={{color:savedTheme==='light'?'#232629':'#fbfbfb',}} className="text-sm md:text-xl font-semibold mt-2">No posts yet</p>
     </div>
   )
 )}
@@ -2058,21 +2433,10 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
      </Modal>
      </div>
      }
-     {isModalOpen && (
-     <div>
-       <Modal
-      open={isModalOpen}
-      onClose={() => setModalOpen(false)}
-    >
-      <Box sx={style}>
-       
+    
+      <DragCloseDrawer  isModalOpen={isModalOpen} setModalOpen={setModalOpen}>
       <SendMessageModal recipientUser={user} onClose={() => setModalOpen(false)} />
-        
-      </Box>  
-    </Modal>
-     </div>
-       
-      )}
+      </DragCloseDrawer>
    </div>
     )
     }
@@ -2081,12 +2445,14 @@ const ProfileUsers = ({ user,posts, allUsers,onBack }) => { // Destructure 'user
   );
 };
 
+
+
+
 const SendMessageModal = ({ recipientUser, onClose }) => {
   const [message, setMessage] = useState('');
 
-  const handleSendMessage = () => {
-    // Retrieve the logged-in user from localStorage
-    const currentUser = JSON.parse(localStorage.getItem('user'));
+  const handleSendMessage = async () => {
+    const currentUser = JSON.parse(localStorage.getItem('user')); // Retrieve the logged-in user
 
     if (!currentUser || !currentUser.id) {
       console.error('Current user is not defined');
@@ -2104,6 +2470,7 @@ const SendMessageModal = ({ recipientUser, onClose }) => {
     }
 
     const newMessage = {
+      id: (Math.random() * 1000000).toFixed(0), // Generate a unique ID for the message
       senderId: currentUser.id,
       senderNickname: currentUser.nickname,
       recipientId: recipientUser.id,
@@ -2112,235 +2479,472 @@ const SendMessageModal = ({ recipientUser, onClose }) => {
       timestamp: new Date().toISOString(),
     };
 
-    // Save the message in localStorage or send to the backend
-    const messages = JSON.parse(localStorage.getItem('messages')) || [];
-    messages.push(newMessage);
-    localStorage.setItem('messages', JSON.stringify(messages));
+    try {
+      // Fetch the sender's data (current user)
+      const senderResponse = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`);
+      const senderData = senderResponse.data;
 
-    setMessage('');  // Clear the message input
-    onClose();  // Close the modal
-    console.log('Message sent to', recipientUser.nickname);
+      // Fetch the recipient's data
+      const recipientResponse = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${recipientUser.id}`);
+      const recipientData = recipientResponse.data;
+
+      // Add the new message to both users' messages arrays
+      const updatedSenderMessages = [...senderData.messages, newMessage];
+      const updatedRecipientMessages = [...recipientData.messages, newMessage];
+
+      // Update sender's messages on the API
+      await axios.put(
+        `https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`,
+        { ...senderData, messages: updatedSenderMessages }
+      );
+
+      // Update recipient's messages on the API
+      await axios.put(
+        `https://66edb996380821644cddd154.mockapi.io/api/users/${recipientUser.id}`,
+        { ...recipientData, messages: updatedRecipientMessages }
+      );
+
+      console.log('Message sent successfully!');
+
+      // Clear the message input and close the modal
+      setMessage('');
+      onClose();
+
+    } catch (error) {
+      console.error('Failed to send message:', error.response ? error.response.data : error.message);
+    }
   };
-
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
-    <div>
-      <h3>Send a message to <b>{recipientUser.nickname}</b></h3>
-     <div className="flex flex-col gap-4 mt-2">
-     <textarea rows='2' style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '2px solid #dddfe2' : '2px solid #3b3f45' }}
-       value={message} onChange={(e) => setMessage(e.target.value)} />
-      <div className="flex gap-4 justify-end">
-      <button className="p-1" style={{color: '#26374a',backgroundColor:'#a0b6cf',borderRadius:'10px'}} onClick={handleSendMessage}>Send</button>
-      <button className="p-1.5" style={{border:savedTheme ==='light'?'1px solid #dddfe2':'1px solid #3b3f45',backgroundColor:savedTheme ==='light'?'#fbfbfb':'#232629' ,borderRadius:'10px'}} onClick={onClose}>Cancel</button>
-      </div>
-     </div>
+    <div className="flex flex-col items-center justify-center">
+      <h1 className="mb-4">Send message to <b>{recipientUser.nickname}</b></h1>
+      <textarea
+        value={message}
+        style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629',
+          color:savedTheme === 'light'?'#232629':'#fbfbfb',
+          border:savedTheme === 'light'?'1px solid #dddfe2':'1px solid #3b3f45',
+          borderRadius:'5px',
+          padding:'5px'
+        }}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Type your message here"
+      />
+      <button className="py-1 px-1.5 rounded-md mt-4" style={{backgroundColor:'#a0b6cf',color:'#26374a'}} onClick={handleSendMessage}>Send</button>
     </div>
   );
 };
 
 
-
-const SendMessage = (user)=>{
+/////drawer for the message 
+const DragCloseDrawer = ({ isModalOpen, setModalOpen, children }) => {
   const savedTheme = localStorage.getItem('color') || 'light';
-   const [messages, setMessages] = useState([]);
+  const [scope, animate] = useAnimate();
+  const [drawerRef, { height }] = useMeasure();
 
-   const updateMessagesInLocalStorage = (messages) => {
-    localStorage.setItem('messages', JSON.stringify(messages));
+  const y = useMotionValue(0);
+  const controls = useDragControls();
+
+  const handleClose = async () => {
+    animate(scope.current, {
+      opacity: [1, 0],
+    });
+
+    const yStart = typeof y.get() === "number" ? y.get() : 0;
+
+    await animate("#drawer", {
+      y: [yStart, height],
+    });
+
+    setModalOpen(false);
   };
 
+  return (
+    <>
+      {isModalOpen && (
+        <motion.div
+          ref={scope}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={handleClose}
+          className="fixed inset-0 z-50 bg-neutral-950/70"
+         
+        >
+          <motion.div
+            id="drawer"
+            ref={drawerRef}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ y: "100%" }}
+            animate={{ y: "0%" }}
+            transition={{
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-0 h-[55vh] w-full overflow-hidden rounded-t-3xl bg-neutral-900"
+            
+            style={{ y, backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b', }}
+            drag="y"
+            dragControls={controls}
+            onDragEnd={() => {
+              if (y.get() >= 100) {
+                handleClose();
+              }
+            }}
+            dragListener={false}
+            dragConstraints={{
+              top: 0,
+              bottom: 0,
+            }}
+            dragElastic={{
+              top: 0,
+              bottom: 0.5,
+            }}
+          >
+            <div className="absolute left-0 right-0 top-0 z-10 flex justify-center bg-neutral-900 p-4"
+            style={{backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',}}
+            >
+              <button
+                onPointerDown={(e) => {
+                  controls.start(e);
+                }}
+                className="h-2 w-14 cursor-grab touch-none rounded-full bg-neutral-700 active:cursor-grabbing"
+              ></button>
+            </div>
+            <div className="relative z-0 h-full  p-4 pt-12">
+              {children}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </>
+  );
+};
+
+
+
+
+
+
+const SendMessage = () => {
+  const savedTheme = localStorage.getItem('color') || 'light';
+  const [messages, setMessages] = useState([]);
+
+  const currentUser = JSON.parse(localStorage.getItem('user')); // Modify this as needed
+
+    // Fetch messages from the new API
+    
   useEffect(() => {
-    // Retrieve messages from localStorage
-    const storedMessages = JSON.parse(localStorage.getItem('messages')) || [];
-    setMessages(storedMessages);
-  }, []);
+    const fetchMessages = async () => {
+      try {
+        const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`);
+        setMessages(response.data.messages); // Accessing messages from the user data
+      } catch (error) {
+        console.error('Error fetching messages', error);
+      }
+    };
 
-  // Retrieve the logged-in user from localStorage
-  const currentUser = JSON.parse(localStorage.getItem('user'));
+    fetchMessages();
+  }, [currentUser.id]);
 
-  if (!currentUser || !currentUser.id) {
-    console.error('Current user is not defined');
-    return <div>Error: No current user</div>;
-  }
+  const handleMarkAsRead = async (messageToRemove) => {
+    try {
+      const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`);
+      const data = response.data;
 
-  const handleMarkAsRead = (messageToRemove) => {
-    // Remove the specific message only if it is related to the current user
-    const updatedMessages = messages.filter(
-      (msg) =>
-        (msg.senderId !== currentUser.id && msg.recipientId !== currentUser.id) ||
-        msg.timestamp !== messageToRemove.timestamp
-    );
-    setMessages(updatedMessages);
-    updateMessagesInLocalStorage(updatedMessages);
+      // Filter out the message to mark as read
+      const updatedMessages = data.messages.filter(msg => msg.id !== messageToRemove.id);
+
+      // Update the user with the new messages array
+      await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`, {
+        ...data,
+        messages: updatedMessages,
+      });
+
+      // Update the state
+      setMessages(updatedMessages);
+    } catch (error) {
+      console.error('Error marking message as read:', error.response ? error.response.data : error.message);
+    }
   };
 
-  const handleClearAllMessages = () => {
-    // Clear all messages related to the current user
-    const updatedMessages = messages.filter(
-      (msg) => msg.senderId !== currentUser.id && msg.recipientId !== currentUser.id
-    );
-    setMessages(updatedMessages);
-    updateMessagesInLocalStorage(updatedMessages);
+  const handleClearAllMessages = async () => {
+    try {
+      const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`);
+      const data = response.data;
+
+      // Clear all messages
+      await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${currentUser.id}`, {
+        ...data,
+        messages: [],
+      });
+
+      setMessages([]); // Clear messages locally as well
+    } catch (error) {
+      console.error('Failed to clear messages', error);
+    }
   };
-  // Filter messages that are either sent by or received by the current user
   const userMessages = messages.filter(
     (message) =>
       message.senderId === currentUser.id || message.recipientId === currentUser.id
   );
+
   return (
     <div className="messages p-4 mt-6 md:mt-0">
-    <div className="flex justify-between items-center mb-0 md:mb-5">
-    <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">Messages</h2>
-    <button style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '5px' }} className="text-xs md:text-base" onClick={handleClearAllMessages}>Clear All Messages</button>
-    </div>
-    {userMessages.length > 0 ? (
-     <div>
-      {userMessages.map((msg, index) => (
-       <div className="">
-         <div className="flex items-center justify-between p-2 mb-2" key={index} style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
-         <div className="">
-         <p>
-            <strong className="text-sm md:text-base" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.senderNickname}</strong> to{' '}
-            <strong className="text-sm md:text-base" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.recipientNickname}</strong> : <p className="text-sm md:text-base">{msg.content}</p>
-          </p>
-          <span className="text-xs md:text-base"><strong  style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} className="mr-4">Time:</strong>{new Date(msg.timestamp).toLocaleString()}</span>
-          
-         </div>
-        <div className="flex">
-        <button className="p-0.5 md:p-1.5 hidden md:block" style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px' }} onClick={() => handleMarkAsRead(msg)}>Mark as Read</button>  
-        <button className=" block md:hidden text-xs md:text-base" style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px',padding:'1px' }} onClick={() => handleMarkAsRead(msg)}><DoneOutlinedIcon/></button>  
-        </div>
-        </div>
-       </div>
-      ))}
+      <div className="flex justify-between items-center mb-0 md:mb-5">
+        <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">
+          Messages
+        </h2>
+        <button
+          style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '5px' }}
+          className="text-xs md:text-base"
+          onClick={handleClearAllMessages}
+        >
+          Clear All Messages
+        </button>
+      </div>
 
-     </div>
-    ) : (
-      <div className="flex flex-col items-center justify-center mt-12">
+      {userMessages.length > 0 ? (
+        <div>
+          {userMessages.map((msg, index) => (
+            <div className="message-item flex flex-col md:flex-row justify-between items-center" key={msg.id} style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45', padding: '10px', marginBottom: '10px' }}>
+              <div className="flex flex-col gap-3">
+              <p className="font-light text-sm md:font-medium md:text-md">
+                <strong className="font-normal text-md" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.senderNickname}</strong> to <strong style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>{msg.recipientNickname}</strong>: {msg.content}
+              </p>
+              <span className="font-light text-xs"><strong className="font-normal" style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }}>Time:</strong> {new Date(msg.timestamp).toLocaleString()}</span>
+              </div>
+              <button 
+              className="p-0.5 md:p-1.5  text-sm md:font-medium md:text-md"
+              onClick={() => handleMarkAsRead(msg)} 
+              style={{ marginLeft: '10px', marginTop:'5px',background: '#a0b6cf', color: '#26374a', borderRadius: '5px' }}>
+              Mark as Read
+            </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center mt-12">
           <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
-            <TbMessagesOff  style={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+            <TbMessagesOff style={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
           </div>
-          <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', }} className="text-xl font-semibold mt-2">No Messages yet</p>
+          <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">No Messages yet</p>
         </div>
-    )}
-   
-  </div>
+      )}
+    </div>
   );
-}
+};
 
-const Notifications = ({ user }) => {
+
+const Notifications = ({ user}) => {
+  const [currentUser, setCurrentUser] = useState(null); // Changed to null for better checking
   const [notifications, setNotifications] = useState([]);
-
   const [friendStatus, setFriendStatus] = useState('');
-  const [friendCount, setFriendCount] = useState(user.friends?.length || 0);
+  const apiUrl = "https://66edb996380821644cddd154.mockapi.io/api/users";
 
-  useEffect(() => {
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    setNotifications(storedNotifications[user.id] || []);
-  }, [user.id]);
+ 
+ useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const userData = JSON.parse(localStorage.getItem('user'));
+      if (!userData) return; // Ensure user data is available
+      setCurrentUser(userData);
 
-  const markAsRead = (notificationId) => {
-    const updatedNotifications = notifications.filter(notification => notification.id !== notificationId);
-    setNotifications(updatedNotifications);
+      try {
+        const response = await axios.get(`${apiUrl}/${userData.id}`);
+        setNotifications(response.data.notifications || []);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
 
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    storedNotifications[user.id] = updatedNotifications;
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+    fetchCurrentUser();
+  }, []);
+
+  const markAsRead = async (notificationId) => {
+    if (!currentUser) return; // Check if currentUser is set
+  
+    try {
+      const response = await axios.get(`${apiUrl}/${currentUser.id}`);
+      const data = response.data;
+  
+      // Ensure notifications are valid and filter out the read notification
+      const updatedNotifications = data.notifications
+        .filter(notification => notification && notification.id) // Filter out null or undefined notifications
+        .filter(notification => notification.id !== notificationId); // Filter out the one being marked as read
+  
+      // Update user's notifications in the API
+      await axios.put(`${apiUrl}/${currentUser.id}`, {
+        ...data,
+        notifications: updatedNotifications
+      });
+  
+      // Update the notifications in state
+      setNotifications(updatedNotifications);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const handleAcceptFriend = (notification) => {
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    if (!currentUser) return;
+  const handleAcceptFriend = async (senderId, notificationId) => {
+    if (!currentUser) return; // Check if currentUser is set
   
-    const currentUserId = currentUser.id;
-    const senderId = notification.senderId;
+    try {
+      // Fetch all users
+      const response = await axios.get(apiUrl);
+      const data = response.data;
   
-    const storedFriends = JSON.parse(localStorage.getItem('friends')) || {};
-    if (!storedFriends[currentUserId]) storedFriends[currentUserId] = [];
-    if (!storedFriends[senderId]) storedFriends[senderId] = [];
-    console.log('Updated Friends List:', storedFriends);
-    // Add each other to friends list
-    if (!storedFriends[currentUserId].includes(senderId)) {
-      storedFriends[currentUserId].push(senderId);
+      // Find the current user and the sender in the API data
+      const currentUserRecord = data.find((u) => u.id === currentUser.id);
+      const senderRecord = data.find((u) => u.id === senderId);
+  
+      if (!currentUserRecord || !senderRecord) {
+        console.error("User records not found");
+        return;
+      }
+  
+      // Add each other to friendships
+      currentUserRecord.friendships.push({
+        friendId: senderId,
+        status: "accepted" // Friend request is accepted
+      });
+  
+      senderRecord.friendships.push({
+        friendId: currentUser.id,
+        status: "accepted"
+      });
+  
+      // Create a notification for the sender
+      const notificationMessage = {
+        id: new Date().getTime().toString(), // Unique ID for the notification
+        senderId: currentUser.id,
+        senderNickname: currentUser.nickname,
+        action: `${currentUser.nickname} has accepted your friend request.`,
+        timestamp: new Date().toISOString(),
+      };
+  
+      // Add the notification to the sender's notifications
+      senderRecord.notifications.push(notificationMessage);
+  
+      // Update both users' data in the API
+      await axios.put(`${apiUrl}/${currentUser.id}`, currentUserRecord);
+      await axios.put(`${apiUrl}/${senderId}`, senderRecord);
+  
+      // Optionally mark the original notification (friend request) as read
+      if (notificationId) {
+        await markAsRead(notificationId); // Pass the notificationId to mark it as read
+  
+        // Remove the notification from local state
+        setNotifications((prevNotifications) =>
+          prevNotifications.filter((notification) => notification.id !== notificationId)
+        );
+      }
+  
+      // Optionally, refresh notifications if needed
+      // fetchNotifications(); // Uncomment if necessary to reload notifications
+  
+    } catch (error) {
+      console.error("Failed to accept friend request:", error);
     }
-    if (!storedFriends[senderId].includes(currentUserId)) {
-      storedFriends[senderId].push(currentUserId);
-    }
-  
-    localStorage.setItem('friends', JSON.stringify(storedFriends));
-  
-    // Send notification to the sender
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const senderNotifications = storedNotifications[senderId] || [];
-    senderNotifications.push({
-      senderNickname: currentUser.nickname,
-      action: 'accepted your friend request',
-      timestamp: new Date().toISOString(),
-      id: Date.now(),
-    });
-  
-    storedNotifications[senderId] = senderNotifications;
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-  
-    // Mark the request as accepted
-    markAsRead(notification.id);
-  
-    // Update UI
-    setFriendStatus('Friends');
-    setFriendCount(prevCount => prevCount + 1);
   };
   
 
-  const clearAllNotifications = () => {
-    setNotifications([]);
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    storedNotifications[user.id] = [];
-    localStorage.setItem('notifications', JSON.stringify(storedNotifications));
+  const sendMessage = async (fromUserId, toUserId, message) => {
+    const messageObject = {
+      from: fromUserId,
+      to: toUserId,
+      content: message,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Update the users' message history
+      await axios.post('https://66edb996380821644cddd154.mockapi.io/api/users', messageObject);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!currentUser) return; // Ensure the user is logged in
+  
+    try {
+      // Fetch the current user's data from the API
+      const response = await axios.get(`${apiUrl}/${currentUser.id}`);
+      const userData = response.data;
+  
+      // Clear the notifications in the API
+      await axios.put(`${apiUrl}/${currentUser.id}`, {
+        ...userData,
+        notifications: [] // Set notifications to an empty array
+      });
+  
+      // Clear notifications in the local state
+      setNotifications([]);
+    } catch (error) {
+      console.error('Failed to clear notifications:', error);
+    }
   };
 
   const savedTheme = localStorage.getItem('color') || 'light';
 
   return (
     <div className="notifications p-3 md:p-4 mt-6 md:mt-0">
-      <div className="flex justify-between  items-center mb-0 md:mb-5">
-      <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">Notifications</h2>
-      <button className="text-xs md:text-base" onClick={clearAllNotifications} style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '4px' }}>Clear All Notifications</button>
+      <div className="flex justify-between items-center mb-0 md:mb-5">
+        <h2 style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="font-bold text-xl md:text-2xl mb-2">Notifications</h2>
+        <button className="text-xs md:text-base" onClick={clearAllNotifications} style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '10px', padding: '4px' }}>Clear All</button>
       </div>
-      {notifications.length > 0 ? (
-        <>
-          {notifications.map((notification) => (
-            <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center" style={{ background: savedTheme === 'light' ? '#fbfbfb' : '#232629', color: savedTheme === 'light' ? '#232629' : '#fbfbfb', borderRadius: '10px', border: savedTheme === 'light' ? '1px solid #dddfe2' : '1px solid #3b3f45' }}>
-              <p className="font-normal text-sm" key={notification.id}>
-                <strong  style={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} className="font-semibold text-sm md:text-base">{notification.senderNickname}</strong> {notification.action} {notification.action2} <em>{notification.postText}</em>
-              </p>
-              {notification.action === 'Sent a friend request' ? (
-                <>
-                 <div className="flex gap-2">
-                 <button onClick={() => handleAcceptFriend(notification)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Accept Friend</button>
-                 <button onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}> <CloseIcon /></button>
-                 </div>
-                </>
-              ) : (
-                <div className="flex">
-                  <button className="p-0.5 md:p-1.5 hidden md:block"  onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '5px' }}>Mark as Read</button>
-                  <button className=" block md:hidden" onClick={() => markAsRead(notification.id)} style={{ marginLeft: '10px', background: '#a0b6cf', color: '#26374a', borderRadius: '3px', padding: '1px' }}><DoneOutlinedIcon/></button>
-                </div>
-              )}
-            </div>
-          ))}
-         
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center mt-12">
-          <div style={{ borderRadius: "100%", border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45' }} className="camera-wrapper">
-            <NotificationsOffIcon sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} />
+
+      {notifications.length > 0 ? ( // Check if notifications exist
+  notifications
+    .filter(notification => notification !== null) // Filter out null values
+    .map((notification) => (
+      <div key={notification.id} className="notification p-2 mb-2 flex justify-between items-center">
+        {/* Display notification message */}
+      <p
+      className="font-light text-sm md:font-normal md:text-md "
+      style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}>{notification.action} - {new Date(notification.timestamp).toLocaleString()}</p>  
+
+        {/* Conditional rendering based on the action of the notification */}
+        {notification.action.includes('sent you a friend request') ? ( // If action is a friend request
+          <div className="flex gap-2">
+            <button
+             style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '5px', padding: '5px' }}
+             onClick={() => handleAcceptFriend(notification.senderId, notification.id)}>Accept Friend</button>
+            <button 
+             style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '5px', padding: '5px' }}
+            onClick={() => markAsRead(notification.id)}><CloseIcon/></button>
           </div>
-          <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb', }} className="text-xl font-semibold mt-2">No Notification yet</p>
-        </div>
-      )}
+        ) : (
+          <button 
+          style={{ background: '#a0b6cf', color: '#26374a', borderRadius: '5px', padding: '5px' }}
+          onClick={() => markAsRead(notification.id)}><DoneOutlinedIcon/></button> // If it's not a friend request
+        )}
+      </div>
+    ))
+) : (
+  <div className="flex flex-col items-center justify-center mt-12">
+    <div
+      style={{
+        borderRadius: "100%",
+        border: savedTheme === 'light' ? '3px solid #dddfe2' : '3px solid #3b3f45',
+      }}
+      className="camera-wrapper"
+    >
+      <NotificationsOffIcon
+        sx={{ width: '125px', height: '125px', padding: '20px', color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }}
+      />
+    </div>
+    <p style={{ color: savedTheme === 'light' ? '#232629' : '#fbfbfb' }} className="text-xl font-semibold mt-2">
+      No Notifications yet
+    </p>
+  </div>
+)}
+
+
+
     </div>
   );
 };
+
+
 
 
 
@@ -2362,7 +2966,7 @@ const EditProfile = ({ handleGoBack }) => {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       setImage(parsedUser.avatar || ''); // Set initial image state from user data
-      setIsPrivate(parsedUser.isPrivate || false);
+      setIsPrivate(parsedUser.isPrivate || false); // Read from is_private
     }
   }, []);
 
@@ -2398,8 +3002,9 @@ const EditProfile = ({ handleGoBack }) => {
   };
 
   const handleSaveChanges = async () => {
-    const updatedUser = { ...user };
+    const updatedUser = { ...user, isPrivate: isPrivate };
   
+    // Update the user fields if they have been modified
     if (password.trim() !== '') {
       updatedUser.password = password;
     }
@@ -2408,32 +3013,27 @@ const EditProfile = ({ handleGoBack }) => {
       updatedUser.avatar = image; // Update avatar with the new image URL
     }
   
+    // Update nickname or any other field you may need (add more as necessary)
+    if (nickname.trim() !== '') {
+      updatedUser.nickname = nickname;
+    }
+  
     // Save updated user in localStorage
     localStorage.setItem('user', JSON.stringify(updatedUser));
   
     try {
-      // Fetch current users from the API
-      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-        headers: {
-          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-        }
-      });
+      // Fetch current users from the new API
+      const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
   
-      const users = response.data.record.users; // Get the list of all users
+      const users = response.data; // Get the list of all users
   
       // Ensure the current user exists and update their details
       const updatedUsers = users.map(u => (u.id === updatedUser.id ? updatedUser : u));
   
       // Save the updated users list back to the API
       await axios.put(
-        'https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320',
-        { users: updatedUsers }, // Send the entire updated users list
-        {
-          headers: {
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq',
-            'Content-Type': 'application/json'
-          }
-        }
+        `https://66edb996380821644cddd154.mockapi.io/api/users/${updatedUser.id}`,
+        updatedUser // Send the updated user object
       );
   
       // Display success message and navigate back
@@ -2449,10 +3049,7 @@ const EditProfile = ({ handleGoBack }) => {
   };
 
   const handleTogglePrivacy = () => {
-    const newPrivacySetting = !isPrivate;
-    setIsPrivate(newPrivacySetting);
-    setUser({ ...user, isPrivate: newPrivacySetting });
-    localStorage.setItem('user', JSON.stringify({ ...user, isPrivate: newPrivacySetting })); // Update in local storage
+    setIsPrivate((prevPrivacySetting) => !prevPrivacySetting); // Toggle only the state
   };
 
   if (!user) {

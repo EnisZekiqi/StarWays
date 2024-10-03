@@ -12,8 +12,10 @@
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.2",
     "express": "^4.21.0",
+    "firebase": "^10.13.2",
     "framer-motion": "^11.3.19",
     "js-cookie": "^3.0.5",
+    "lodash.debounce": "^4.0.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-globe.gl": "^2.27.2",
@@ -23,6 +25,7 @@
     "react-scripts": "5.0.1",
     "react-use-measure": "^2.1.1",
     "three": "^0.168.0",
+    "uuid": "^10.0.0",
     "uvcanvas": "^0.2.1",
     "web-vitals": "^2.1.4"
   },

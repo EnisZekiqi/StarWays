@@ -33,10 +33,8 @@ const UserForm = ({ }) => {
   
 
   const fetchUsers = async () => {
-    const { data } = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-      headers: {
-        'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-      }
+    const { data } = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users', {
+      
     });
     return data.record.users || [];
   };
@@ -45,15 +43,11 @@ const UserForm = ({ }) => {
     e.preventDefault();
   
     try {
-      // Fetch users from jsonbin.io
-      const { data } = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-        headers: {
-          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq' // Replace with your actual key
-        }
-      });
+      // Fetch users from MockAPI
+      const { data } = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
   
-      const users = data.record.users;
-      const user = users.find((u) => u.nickname === nickname && u.password === password);
+      // Use data directly since MockAPI returns an array of users
+      const user = data.find((u) => u.nickname === nickname && u.password === password);
   
       if (user) {
         setLoading(true);
@@ -69,9 +63,7 @@ const UserForm = ({ }) => {
   
     } catch (error) {
       console.error('Error during login:', error);
-      setError('Failed to login');
-    }
-  };
+    }}  
   
   
 

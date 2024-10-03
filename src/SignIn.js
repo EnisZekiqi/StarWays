@@ -101,7 +101,7 @@ const SignIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (nickname.trim() === '' || password.trim() === '' || description.trim() === '') {
       setError('Please fill out all fields.');
       return;
@@ -123,51 +123,42 @@ const SignIn = () => {
       }, 3000);
       return;
     }
-  
+
     try {
       // 1. Fetch the current users
-      const response = await axios.get('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', {
-        headers: {
-          'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-        }
+      const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users', {
+       
       });
-  
+
       // Log the response to see its structure
       console.log('API response:', response.data);
-  
-      // Extract users safely, ensuring it's an array
-      const currentUsers = Array.isArray(response.data.record.users) ? response.data.record.users : [];
-  
-      // 2. Add the new user to the list
+
+      // 2. Add the new user to the table
       const newUser = {
-        id: currentUsers.length + 1,
         nickname,
         password,
         description,
-        birthDate: { month, day, year },
-        gender
+        birth_month: month, // Change to match your database schema
+        birth_day: day, // Change to match your database schema
+        birth_year: year, // Change to match your database schema
+        gender,
+        avatar: '', // Add avatar logic if needed
+        is_private: false // Or whatever default you want
       };
-  
-      const updatedUsers = [...currentUsers, newUser];
-  
-      // 3. Update the users list on the API
-      await axios.put('https://api.jsonbin.io/v3/b/66f02668ad19ca34f8aab320', 
-        { users: updatedUsers },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': '$2a$10$FLD5iYCGIbkUuKuyqX1Ee.zWVlf6DEH70.S5VMHv6pxLixGBbmYJq'
-          }
-        }
+
+      // 3. Create the user via POST request
+      await axios.post('https://66edb996380821644cddd154.mockapi.io/api/users', 
+        newUser,
+        
       );
-  
+
       localStorage.setItem('user', JSON.stringify(newUser));
-  
+
       // Navigate to the main page or show a success message
       setTimeout(() => {
         navigate('/main');
       }, 2000);
-  
+
     } catch (error) {
       console.error('Error saving user:', error);
       setError('Failed to save the user');
