@@ -46,7 +46,7 @@ const [open, setOpen] = useState(false);
                     <div className="starterLine hidden lg:block h-1 w-8 -ml-3.5 rounded-t-sm"
                     style={{backgroundColor:savedTheme === 'light' ? '#26374a':'#a0b6cf'}}
                     />
-                    <div className="wrapper2 px-1"
+                    <div className="wrapper2 px-1 text-sm md:text-xl"
                     style={{border:savedTheme === 'light'? '2px solid #dddfe2':'2px solid #3b3f45',
                         backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629',
                         color:savedTheme === 'light'?'rgb(35, 38, 41)':'#fbfbfb',
@@ -57,14 +57,17 @@ const [open, setOpen] = useState(false);
                     </div>
                     </div>
                     <div className="flex items-center gap-3.5">
-                    <div className="starterLine  hidden lg:block h-32 lg:h-48 w-2 -ml-3.5 -mt-4 lg:-mt-14 rounded-t-sm"
+                    <div className="starterLine  hidden lg:block h-32 lg:h-16 w-1 -ml-3.5 -mt-4 lg:-mt-14 rounded-t-sm"
                     style={{background: savedTheme === 'light' ? '#26374a':'#a0b6cf'}}
                     />
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-7xl font-bold lg:font-extrabold mt-2 text-center lg:text-start"
+                    <div className="flex flex-col items-center">
+                    <h1 className="text-3xl sm:text-3xl md:text-4xl lg:text-7xl font-bold lg:font-extrabold mt-2 text-center lg:text-start"
                     style={{color:savedTheme === 'light'?'rgb(35, 38, 41)':'rgb(251, 251, 251)'}}
-                    >Welcome to the Newest Platform <b className="vv"
+                    > Discover<b className="vv ml-1.5 md:ml-2.5"
                     style={{color:savedTheme==='light'?'#7e9cbe':"#c2d0e0"}}
                     >StarWays</b></h1>
+                    <p style={{color:savedTheme === 'light'?'#5e666e':'#d6d9dc'}} className="font-light text-sm md:text-md">Where the Innovation meets adventure</p>
+                    </div>
                     </div>
                 </div>
               <div className="flex gap-6 w-full h-fit">
@@ -200,7 +203,7 @@ const DragCloseDrawer = ({ open, setOpen, children }) => {
             }}
             className="absolute bottom-0 h-[75vh] w-full overflow-hidden rounded-t-3xl bg-neutral-900"
             
-            style={{ y, backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629', }}
+            style={{ y, backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b', }}
             drag="y"
             dragControls={controls}
             onDragEnd={() => {
@@ -219,7 +222,7 @@ const DragCloseDrawer = ({ open, setOpen, children }) => {
             }}
           >
             <div className="absolute left-0 right-0 top-0 z-10 flex justify-center bg-neutral-900 p-4"
-            style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629',}}
+            style={{backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',}}
             >
               <button
                 onPointerDown={(e) => {

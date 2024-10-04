@@ -112,6 +112,7 @@ const Main = () => {
           userNickname,
           userAvatar,
           createdAt: new Date().toISOString(), // Include createdAt
+          likes: 0, 
         };
     
         // 2. Fetch the existing user data
@@ -764,14 +765,7 @@ const HomeComponent = () => {
         <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
         <p>{post.text}</p>
       </div>
-      <div className="mt-4 flex justify-end items-end w-full">
-        <Checkbox
-          icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-          checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-          checked={!!likedPosts[post.id]}
-          onChange={() => handleToggleBookmark(post.id)}
-        />
-      </div>
+      
     </div>
   );
 })}
@@ -932,14 +926,7 @@ const ExploreComponent = () => {
                   <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
                   <p>{post.text}</p>
                 </div>
-                <div className="mt-4">
-                  <Checkbox
-                    icon={<FavoriteBorder sx={checkboxStyle} />}
-                    checkedIcon={<Favorite sx={checkboxStyle} />}
-                    checked={!!likedPosts[post.id]}
-                    onChange={() => handleToggleBookmark(post.id)}
-                  />
-                </div>
+                
               </div>
             );
           })}
@@ -1160,14 +1147,7 @@ const SearchPlusExplore = () => {
                           <p><strong className="text-lg">Feeling:</strong> {post.feeling}</p>
                           <p>{post.text}</p>
                         </div>
-                        <div className="mt-4 flex justify-end items-end w-full">
-                          <Checkbox
-                            icon={<FavoriteBorder sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                            checkedIcon={<Favorite sx={{ color: savedTheme === 'light' ? '#26374a' : '#a0b6cf' }} />}
-                            checked={!!likedPosts[post.id]}
-                            onChange={() => handleToggleBookmark(post.id)}
-                          />
-                        </div>
+                        
                       </div>
                     );
                   })}
@@ -1872,7 +1852,7 @@ const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // De
  
   
 
-  const handleToggleBookmark = (postId) => {
+  const handleToggleBookmark = async (postId) => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (!storedUser || typeof storedUser !== 'object') {
       console.error('Logged-in user data is invalid or missing');
@@ -1882,14 +1862,17 @@ const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // De
     const currentUserNickname = storedUser.nickname;
     const currentUserId = storedUser.id;
   
+    // Find the post by postId
     const post = posts.find(post => post.id === postId);
     if (!post) return;
   
     const postOwnerId = post.userId;
   
+    // Get existing notifications from localStorage or initialize an empty object
     const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
     const userNotifications = storedNotifications[postOwnerId] || [];
   
+    // Toggle bookmark and likes
     setBookmarks(prevBookmarks => {
       const updatedBookmarks = { ...prevBookmarks };
       const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
@@ -1901,7 +1884,7 @@ const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // De
         // Add to bookmarks
         updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
   
-        // Add notification
+        // Add notification for liking the post
         userNotifications.push({
           senderNickname: currentUserNickname,
           postText: post.text,
@@ -1923,18 +1906,53 @@ const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // De
       setLikedPosts(prevLikedPosts => {
         const updatedLikedPosts = { ...prevLikedPosts };
   
-        if (updatedLikedPosts[postId]) {
-          delete updatedLikedPosts[postId]; // Unliking the post
-        } else {
-          updatedLikedPosts[postId] = true; // Liking the post
-        }
+        // API to update the post likes
+        const updateLikesAPI = async (post) => {
+          try {
+            // Get the current posts from the API
+            const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users`);
+            const apiPosts = response.data;
   
-        // Update liked posts in localStorage
-        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
-        savedLiked[currentUserId] = updatedLikedPosts;
-        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
+            // Find the post in the API
+            const apiPost = apiPosts.find(p => p.id === postId);
+            if (!apiPost) return;
   
-        // Update the state
+            // Toggle like/unlike logic
+            if (updatedLikedPosts[postId]) {
+              // Unlike the post
+              delete updatedLikedPosts[postId];
+              apiPost.likes = Math.max(0, apiPost.likes - 1); // Decrease likes but don't go below 0
+            } else {
+              // Like the post
+              updatedLikedPosts[postId] = true;
+              apiPost.likes += 1; // Increase likes
+            }
+  
+            // Send updated like count to the API
+            await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${postOwnerId}`, apiPost);
+  
+            // Send notification to the post owner
+            const notificationMessage = {
+              id: new Date().getTime().toString(),
+              senderId: currentUserId,
+              senderNickname: currentUserNickname,
+              action: `${currentUserNickname} liked your post.`,
+              timestamp: new Date().toISOString(),
+            };
+            await sendNotification(postOwnerId, notificationMessage);
+            
+            // Update the localStorage with new like count
+            const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: apiPost.likes } : p);
+            localStorage.setItem('posts', JSON.stringify(updatedPosts));
+  
+          } catch (error) {
+            console.error("Error updating likes:", error);
+          }
+        };
+  
+        // Call the API to update likes
+        updateLikesAPI(post);
+  
         return updatedLikedPosts;
       });
   
@@ -2325,7 +2343,7 @@ const sendNotification = async (userId, notification) => {
           {searchedUserFriendCount} <b className="font-semibold ml-1">friends</b>
         </div>
          </div>
-         <p className="text-center" style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
+         <p className="" style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
          <div className="flex gap-4 mt-6 md:mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
          {friendStatus === 'Add Friend' && (
              <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-2.5 md:px-4 py-1 md:py-2 rounded">
@@ -2388,14 +2406,7 @@ const sendNotification = async (userId, notification) => {
           <p className="mt-3 md:mt-0"><strong>Feeling:</strong> {post.feeling}</p>
           <p>{post.text}</p>
         </div>
-        <div className="flex items-center" style={{zIndex:0}}>
-          <Checkbox
-           icon={<FavoriteBorder sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-           checkedIcon={<Favorite sx={{color:savedTheme ==='light' ? '#26374a':'#a0b6cf'}}/>}
-            checked={!!likedPosts[post.id]} // Ensure the checkbox is checked if the post is liked
-            onChange={() => handleToggleBookmark(post.id)}
-          />
-        </div>
+        
       </div>
      
     ))

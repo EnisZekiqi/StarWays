@@ -84,7 +84,7 @@ const Home = () => {
                     filter: 'drop-shadow(0px 0px 6px #a0b6cf)'
                 }}/>
             </div>
-               <section className="c-space my-20" id="about">
+               <section className="c-space my-5" id="about">
       <div className="grid xl:grid-cols-3 xl:grid-rows-6 md:grid-cols-2 grid-cols-1 gap-5 h-full">
         <div className="col-span-1 xl:row-span-3 rounded-md p-3"
         style={{backgroundColor:savedTheme === 'light'?'#fbfbfb':'#232629',border:savedTheme === 'light'?'1px solid #dddfe2':'1px solid #3b3f45'}}
