@@ -155,8 +155,10 @@ const Main = () => {
       setAnchorEl(null);
     };
 
-    const handleCloseLogOut = () => {
+    const handleCloseLogOut = async () => {
         setAnchorEl(null);
+        const updatedUser = { ...user, isUserOnline: false };
+        await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${user.id}`, updatedUser);
         Cookies.set('isAuthenticated', 'false')
         localStorage.removeItem('onlineStatus');
       };
@@ -171,45 +173,23 @@ const [notificationsCount, setNotificationsCount] = useState(0);
 
 const [lastFetchTime, setLastFetchTime] = useState(null);
 
-useEffect(() => {
-  const fetchNotifications = async () => {
-    if (!user || !user.id) return; // Ensure user is available
+ // Fetch notifications function
+ const fetchNotifications = async () => {
+  try {
+    const response = await axios.get(`${apiUrl}/${user.id}`);
+    const userData = response.data;
 
-    try {
-      const response = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
-      const usersData = response.data;
-
-      const userNotifications = usersData.find(userItem => userItem.id === user.id);
-      
-      if (userNotifications) {
-        setNotifications(userNotifications.notifications || []);
-
-        // Increment the count based on unread notifications (both requests and accepts)
-        const unreadCount = userNotifications.notifications.filter(notification => 
-          !notification.read && 
-          (notification.type === 'friendRequest' || notification.type === 'friendRequestAccepted')
-        ).length;
-        setNotificationsCount(unreadCount);
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
-  const now = new Date();
-  const fiveMinutes = 5 * 60 * 1000;
-
-  // Only fetch if more than 5 minutes have passed since the last fetch
-  if (!lastFetchTime || now - lastFetchTime > fiveMinutes) {
-    fetchNotifications();
-    setLastFetchTime(now);
+    // Set notifications and unread count
+    setNotifications(userData.notifications || []);
+    const unreadNotificationsCount = userData.notifications.filter(notification => 
+      !notification.read && 
+      (notification.type === 'friendRequest' || notification.type === 'friendRequestAccepted')
+    ).length;
+    setNotificationsCount(unreadNotificationsCount);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
   }
-
-  // Optionally poll for notifications every minute
-  const intervalId = setInterval(fetchNotifications, 60000); // 1 minute polling
-  return () => clearInterval(intervalId); // Cleanup on unmount
-}, [user, lastFetchTime]);
-
+};
 
 ////// message .//// 
 
@@ -221,64 +201,61 @@ const [messagesCount, setMessagesCount] = useState(0); // Unread messages count
 const [messages, setMessages] = useState([]); // Messages state
 
 
-  const fetchMessages = async () => {
-    try {
-      const response = await axios.get(`${apiUrl}/${user.id}`); // Get the user by ID
+const fetchMessages = async () => {
+  try {
+    const response = await axios.get(`${apiUrl}/${user.id}`);
+    const userMessages = response.data.messages || [];
+    setMessages(userMessages);
 
-      // Assuming the messages are in the user data
-      const userMessages = response.data.messages; // Access messages directly from user data
-
-      setMessages(userMessages);
-
-      // Step 1: Filter unread messages
-      const unreadMessagesCount = userMessages.filter((msg) => !msg.read).length;
-
-      // Step 2: Update messages count state
-      setMessagesCount(unreadMessagesCount);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-; // Depend on 'user' instead of 'currentUser'
-
+    // Set unread messages count
+    const unreadMessagesCount = userMessages.filter(msg => !msg.read).length;
+    setMessagesCount(unreadMessagesCount);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+  }
+};
 
 ////////
 const apiUrl = "https://66edb996380821644cddd154.mockapi.io/api/users";
 
-const handleTabChange = async (tab) => {
-  if (!user || !user.id) {
-    console.error('User is not defined or user.id is missing');
-    return;
+useEffect(() => {
+  if (user && user.id) {
+    fetchNotifications(); // Fetch notifications when user is available
+    fetchMessages();      // Fetch messages when user is available
   }
-
-  if (tab === 'notification') {
-    // Fetch notifications from the API when the notifications tab is clicked
-    try {
-      const response = await axios.get(`${apiUrl}/${user.id}`);
-      const userData = response.data;
-      setNotifications(userData.notifications || []);
-      
-      // Count unread notifications
-      const unreadCount = userData.notifications.filter(notification => !notification.read).length;
-      setNotificationsCount(unreadCount);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  }
-
-  if (tab === 'messages') {
-    // Fetch messages logic here
-  }
+}, [user]); 
 
 
-  if (tab === 'messages') {
-    fetchMessages(); 
-  }
+const handleTabChange = (tab) => {
 
+  
   setActiveTab(tab);
-  setEditProfile(false);
-};
+  setEditProfile(false)
 
+  if (tab === 'notifications') {
+    // Reset unread notifications count when the notifications tab is clicked
+    setNotificationsCount(0);
+
+    // Mark all notifications as read (you can add logic here to send updated data to the backend)
+    const updatedNotifications = notifications.map(notification => ({
+      ...notification,
+      read: true,
+    }));
+    setNotifications(updatedNotifications);
+  }
+
+  if (tab === 'messages') {
+    // Reset unread messages count when the messages tab is clicked
+    setMessagesCount(0);
+
+    // Mark all messages as read (you can add logic here to send updated data to the backend)
+    const updatedMessages = messages.map(message => ({
+      ...message,
+      read: true,
+    }));
+    setMessages(updatedMessages);
+  }
+};
 
 const [editProfile,setEditProfile]=useState(false)
 
@@ -464,7 +441,7 @@ useEffect(() => {
          className={getItemClass('messages')}>
             <QuestionAnswerIcon/>
             <p>Messages</p>
-            {messages.length > 0 && <span  style={{borderRadius:'50%',background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}} className=" px-2 font-bold notification-badge"> {messagesCount > 0 && `${messagesCount}`}</span>}
+         <span  style={{borderRadius:'50%',background:savedTheme ==='light'?'#A0B6CF':'#A0B6CF',color:'#26374a'}} className=" px-2 font-bold notification-badge"> {messagesCount > 0 && <span>{messagesCount}</span>}</span>
         </div>
         <div onClick={() => handleTabChange('notification')} id="notifi"
          className={getItemClass('notification')}>
@@ -1259,8 +1236,10 @@ const Profile = ({ handleGoBack, updateTheme, toggleEdit, posts, setPosts }) => 
     setAnchorEl(null);
   };
 
-  const handleCloseLogOut = () => {
+  const handleCloseLogOut = async () => {
     setAnchorEl(null);
+    const updatedUser = { ...user, isUserOnline: false };
+    await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${user.id}`, updatedUser);
     Cookies.set('isAuthenticated', 'false');
   };
 
@@ -2160,11 +2139,31 @@ const sendNotification = async (userId, notification) => {
   };
 
 
-  const isUserOnline = (userId) => {
-    const onlineStatus = JSON.parse(localStorage.getItem('onlineStatus'));
-    return onlineStatus && onlineStatus.userId === userId && onlineStatus.online;
-  }; //// online status if the user is online 
+  const isUserOnline = async (userId) => {
+    try {
+      // Fetch the specific user's data from the API using their ID
+      const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users/${userId}`);
+      const user = response.data;
+  
+      // Return the online status of the user
+      return user.isUserOnline;
+    } catch (error) {
+      console.error('Error fetching user online status:', error);
+      return false; // Assume offline if there's an error
+    }
+  };
 
+  const [isOnline, setIsOnline] = useState(false);
+
+  // Fetch the online status asynchronously
+  useEffect(() => {
+    const fetchOnlineStatus = async () => {
+      const online = await isUserOnline(user.id); // Call the async function
+      setIsOnline(online); // Update the state with the result
+    };
+    
+    fetchOnlineStatus(); // Invoke the function
+  }, [user.id]); 
 
   const style = {
     position: 'absolute',
@@ -2294,11 +2293,12 @@ const sendNotification = async (userId, notification) => {
        <div className="h-fit flex mt-7 md:mt-0">
        <div className="hidden md:block">
        <Avatar className="block md:hidden" sx={{ width: '115px', height: '115px' }} alt={user.nickname} src={user.avatar || ''} />
-         {isUserOnline(user.id) ? <Tooltip title="Online"><span className="11 absolute flex w-8 h-8 rounded-full ml-24 -mt-8"
+         {isOnline ? <Tooltip title="Online"><span className="11 absolute flex w-8 h-8 rounded-full ml-24 -mt-8"
          style={{zIndex:100,backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ></span></Tooltip> : <Tooltip title="Offline"><span className="11 absolute flex items-center w-8 h-8 rounded-full ml-24 -mt-8"
          style={{zIndex:100,backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
+         
         </div>
        <div className="block md:hidden ">
         <div className="flex flex-col">
@@ -2306,11 +2306,12 @@ const sendNotification = async (userId, notification) => {
         <Avatar className="block md:hidden " sx={{ width: '75px', height: '75px' }} alt={user.nickname} src={user.avatar || ''} />
        
         </div>
-        {isUserOnline(user.id) ? <Tooltip title="Online"><span className="22 relative flex w-6 h-6 rounded-full ml-14 -mt-5"
+        {isOnline ? <Tooltip title="Online"><span className="22 relative flex w-6 h-6 rounded-full ml-14 -mt-5"
          style={{backgroundColor:'#a0cfa0',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ></span></Tooltip> : <Tooltip title="Offline"><span className="22 relative flex items-center w-6 h-6 rounded-full ml-14 -mt-5"
          style={{backgroundColor:savedTheme === 'light'?'#eff0f1':'#18191b',border:savedTheme === 'light' ?'3px solid #eff0f1':'3px solid #18191b'}}
          ><AiFillMoon className="w-6 h-6" style={{color:savedTheme === 'light' ? '#4a4a26':'#cfcfa0'}}/></span></Tooltip>}
+        
         </div>
        </div>
        <div className="flex flex-col gap-3 w-full mt-7 md:mt-0">
@@ -2324,8 +2325,8 @@ const sendNotification = async (userId, notification) => {
           {searchedUserFriendCount} <b className="font-semibold ml-1">friends</b>
         </div>
          </div>
-         <p style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
-         <div className="flex gap-4 mt-8 md:mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
+         <p className="text-center" style={{color:savedTheme ==='light'?'#5e666e':'#d6d9dc'}}>{user.description}</p>
+         <div className="flex gap-4 mt-6 md:mt-4 -ml-20 md:-ml-0 font-medium text-sm  md:text-lg">
          {friendStatus === 'Add Friend' && (
              <button  style={{color: '#26374a' ,backgroundColor:'#a0b6cf'}}  onClick={handleAddFriend} className=" px-2.5 md:px-4 py-1 md:py-2 rounded">
                Add Friend
@@ -3267,10 +3268,12 @@ const Create = ({ handleAddPost,user, toggleHighlight, highlight }) => {
         value={feeling} onChange={handleFeelingChange}>
         <div className="hidden md:block">  <option value="">How are you Feeling</option></div>
         <div className="block md:hidden">  <option value=""> Feeling</option></div>
+        <option value="select">Select option</option>
           <option value="Happy">Happy</option>
           <option value="Sad">Sad</option>
           <option value="Angry">Angry</option>
           <option value="Excited">Excited</option>
+          <option value="Excited">Stressed</option>
         </select>
        </div>
       <div className="flex w-fit gap-4 mt-4 items-center" >

@@ -46,14 +46,24 @@ const UserForm = ({ }) => {
       // Fetch users from MockAPI
       const { data } = await axios.get('https://66edb996380821644cddd154.mockapi.io/api/users');
   
-      // Use data directly since MockAPI returns an array of users
+      // Find the user by nickname and password
       const user = data.find((u) => u.nickname === nickname && u.password === password);
   
       if (user) {
         setLoading(true);
         Cookies.set('isAuthenticated', 'true', { expires: 10 });
+  
+        // Update the user object to reflect the online status
+        const updatedUser = { ...user, isUserOnline: true };
+  
+        // Send a PUT request to update the user in MockAPI
+        await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${user.id}`, updatedUser);
+  
+        // Store the updated user with the online status in localStorage
         localStorage.setItem('onlineStatus', JSON.stringify({ userId: user.id, online: true }));
-        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+  
+        // Navigate to the main page
         setTimeout(() => {
           navigate('/main');
         }, 2000);
@@ -63,7 +73,8 @@ const UserForm = ({ }) => {
   
     } catch (error) {
       console.error('Error during login:', error);
-    }}  
+    }
+  };
   
   
 

@@ -143,7 +143,8 @@ const SignIn = () => {
         birth_year: year, // Change to match your database schema
         gender,
         avatar: '', // Add avatar logic if needed
-        is_private: false // Or whatever default you want
+        isPrivate: false ,// Or whatever default you want
+        isUserOnline: false 
       };
 
       // 3. Create the user via POST request
@@ -155,6 +156,7 @@ const SignIn = () => {
       localStorage.setItem('user', JSON.stringify(newUser));
 
       // Navigate to the main page or show a success message
+      setLoading(true)
       setTimeout(() => {
         navigate('/main');
       }, 2000);
