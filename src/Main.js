@@ -112,7 +112,6 @@ const Main = () => {
           userNickname,
           userAvatar,
           createdAt: new Date().toISOString(), // Include createdAt
-          likes: 0, 
         };
     
         // 2. Fetch the existing user data
@@ -645,66 +644,7 @@ const HomeComponent = () => {
 
 
   // Handle bookmark and like actions
-  const handleToggleBookmark = (postId) => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser || typeof storedUser !== 'object') {
-      console.error('Logged-in user data is invalid or missing');
-      return;
-    }
-
-    const currentUserNickname = storedUser.nickname;
-    const currentUserId = storedUser.id;
-
-    const post = allPosts.find(post => post.id === postId);
-    if (!post) return;
-
-    const postOwnerId = post.userId;
-
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[postOwnerId] || [];
-
-    setBookmarks(prevBookmarks => {
-      const updatedBookmarks = { ...prevBookmarks };
-      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
-
-      if (isBookmarked) {
-        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
-      } else {
-        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
-
-        userNotifications.push({
-          senderNickname: currentUserNickname,
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          action: 'liked',
-          action2: 'your post:',
-          id: Date.now(),
-        });
-      }
-
-      storedNotifications[postOwnerId] = userNotifications;
-      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
-
-      setLikedPosts(prevLikedPosts => {
-        const updatedLikedPosts = { ...prevLikedPosts };
-
-        if (updatedLikedPosts[postId]) {
-          delete updatedLikedPosts[postId];
-        } else {
-          updatedLikedPosts[postId] = true;
-        }
-
-        const savedLiked = JSON.parse(localStorage.getItem('likedPosts')) || {};
-        savedLiked[currentUserId] = updatedLikedPosts;
-        localStorage.setItem('likedPosts', JSON.stringify(savedLiked));
-
-        return updatedLikedPosts;
-      });
-
-      return updatedBookmarks;
-    });
-  };
+  
 
   // Load liked posts from localStorage when component mounts
   useEffect(() => {
@@ -834,48 +774,7 @@ const ExploreComponent = () => {
     return user || { nickname: 'Unknown User' }; // Default to 'Unknown User' if not found
   };
 
-  const handleToggleBookmark = (postId) => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser || typeof storedUser !== 'object') {
-      console.error('Logged-in user data is invalid or missing');
-      return;
-    }
-
-    const currentUserId = storedUser.id;
-    const post = allPosts.find(post => post.id === postId);
-    if (!post) return;
-
-    const isBookmarked = likedPosts[postId];
-    const updatedLikedPosts = { ...likedPosts };
-
-    if (isBookmarked) {
-      delete updatedLikedPosts[postId];
-    } else {
-      updatedLikedPosts[postId] = true;
-
-      // Add notification logic
-      const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-      const userNotifications = storedNotifications[post.userId] || [];
-      userNotifications.push({
-        senderNickname: storedUser.nickname,
-        postText: post.text,
-        timestamp: new Date().toISOString(),
-        action: 'liked',
-        action2: 'your post:',
-        id: Date.now(),
-      });
-      storedNotifications[post.userId] = userNotifications;
-      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-    }
-
-    // Update localStorage
-    const savedLikedPosts = JSON.parse(localStorage.getItem('likedPosts')) || {};
-    savedLikedPosts[currentUserId] = updatedLikedPosts;
-    localStorage.setItem('likedPosts', JSON.stringify(savedLikedPosts));
-
-    // Update state
-    setLikedPosts(updatedLikedPosts);
-  };
+ 
 
   const style = {
     color: savedTheme === 'light' ? '#232629' : '#fbfbfb',
@@ -1014,38 +913,7 @@ const SearchPlusExplore = () => {
     }
   }, []);
 
-  const handleToggleBookmark = (postId) => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser) return;
-
-    const currentUserId = storedUser.id;
-    const post = allPosts.find(post => post.id === postId);
-    if (!post) return;
-
-    const userNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const notifications = userNotifications[post.userId] || [];
-
-    setLikedPosts(prevLikedPosts => {
-      const updatedLikedPosts = { ...prevLikedPosts };
-      if (updatedLikedPosts[postId]) {
-        delete updatedLikedPosts[postId];
-      } else {
-        updatedLikedPosts[postId] = true;
-        notifications.push({
-          senderNickname: storedUser.nickname,
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          action: 'liked',
-          action2: 'your post:',
-          id: Date.now(),
-        });
-      }
-
-      localStorage.setItem('likedPosts', JSON.stringify({ [currentUserId]: updatedLikedPosts }));
-      localStorage.setItem('notifications', JSON.stringify({ ...userNotifications, [post.userId]: notifications }));
-      return updatedLikedPosts;
-    });
-  };
+ 
   const [searchedUserId, setSearchedUserId] = useState(null);
 
    const showUser = (user) => {
@@ -1852,113 +1720,7 @@ const ProfileUsers = ({ user,posts, allUsers,searchedUserId,onBack }) => { // De
  
   
 
-  const handleToggleBookmark = async (postId) => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser || typeof storedUser !== 'object') {
-      console.error('Logged-in user data is invalid or missing');
-      return;
-    }
-  
-    const currentUserNickname = storedUser.nickname;
-    const currentUserId = storedUser.id;
-  
-    // Find the post by postId
-    const post = posts.find(post => post.id === postId);
-    if (!post) return;
-  
-    const postOwnerId = post.userId;
-  
-    // Get existing notifications from localStorage or initialize an empty object
-    const storedNotifications = JSON.parse(localStorage.getItem('notifications')) || {};
-    const userNotifications = storedNotifications[postOwnerId] || [];
-  
-    // Toggle bookmark and likes
-    setBookmarks(prevBookmarks => {
-      const updatedBookmarks = { ...prevBookmarks };
-      const isBookmarked = updatedBookmarks[currentUserId]?.includes(postId);
-  
-      if (isBookmarked) {
-        // Remove from bookmarks
-        updatedBookmarks[currentUserId] = updatedBookmarks[currentUserId].filter(id => id !== postId);
-      } else {
-        // Add to bookmarks
-        updatedBookmarks[currentUserId] = [...(updatedBookmarks[currentUserId] || []), postId];
-  
-        // Add notification for liking the post
-        userNotifications.push({
-          senderNickname: currentUserNickname,
-          postText: post.text,
-          timestamp: new Date().toISOString(),
-          action: 'liked',
-          action2: 'your post:',
-          id: Date.now(),
-        });
-      }
-  
-      // Update notifications in localStorage
-      storedNotifications[postOwnerId] = userNotifications;
-      localStorage.setItem('notifications', JSON.stringify(storedNotifications));
-  
-      // Update bookmarks in localStorage
-      localStorage.setItem('bookmarks', JSON.stringify(updatedBookmarks));
-  
-      // Handle liking the post and updating likedPosts
-      setLikedPosts(prevLikedPosts => {
-        const updatedLikedPosts = { ...prevLikedPosts };
-  
-        // API to update the post likes
-        const updateLikesAPI = async (post) => {
-          try {
-            // Get the current posts from the API
-            const response = await axios.get(`https://66edb996380821644cddd154.mockapi.io/api/users`);
-            const apiPosts = response.data;
-  
-            // Find the post in the API
-            const apiPost = apiPosts.find(p => p.id === postId);
-            if (!apiPost) return;
-  
-            // Toggle like/unlike logic
-            if (updatedLikedPosts[postId]) {
-              // Unlike the post
-              delete updatedLikedPosts[postId];
-              apiPost.likes = Math.max(0, apiPost.likes - 1); // Decrease likes but don't go below 0
-            } else {
-              // Like the post
-              updatedLikedPosts[postId] = true;
-              apiPost.likes += 1; // Increase likes
-            }
-  
-            // Send updated like count to the API
-            await axios.put(`https://66edb996380821644cddd154.mockapi.io/api/users/${postOwnerId}`, apiPost);
-  
-            // Send notification to the post owner
-            const notificationMessage = {
-              id: new Date().getTime().toString(),
-              senderId: currentUserId,
-              senderNickname: currentUserNickname,
-              action: `${currentUserNickname} liked your post.`,
-              timestamp: new Date().toISOString(),
-            };
-            await sendNotification(postOwnerId, notificationMessage);
-            
-            // Update the localStorage with new like count
-            const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: apiPost.likes } : p);
-            localStorage.setItem('posts', JSON.stringify(updatedPosts));
-  
-          } catch (error) {
-            console.error("Error updating likes:", error);
-          }
-        };
-  
-        // Call the API to update likes
-        updateLikesAPI(post);
-  
-        return updatedLikedPosts;
-      });
-  
-      return updatedBookmarks;
-    });
-  };
+ 
   
   const [likedPosts, setLikedPosts] = useState({});
   
