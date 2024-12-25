@@ -1,70 +1,110 @@
-# Getting Started with Create React App
+# Starways
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Starways is a replica of Instagram, offering a social media experience where users can create accounts, connect with others, share posts, and send messages. It provides an intuitive and feature-rich platform to explore, interact, and build a network.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Features
 
-### `npm start`
+### 1. **Account Creation and Login**
+- **Sign Up**: Create an account by clicking the **Sign Up** button on the navbar.
+- **Quick Access**: For a fast check, log in using the following credentials:
+  - **Nickname**: `nickname 1`
+  - **Password**: `password 1`
+  - Ensure you enter the credentials exactly as shown (case-sensitive).
+- After logging in, you are redirected to the main page.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 2. **Navbar Functionalities**
+- **Home**: View posts from users you are friends with.
+- **Search**: Search for specific users by their nickname.
+- **Create**: Create and share new posts.
+- **Profile**: Access and manage your profile.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 3. **Profile Page**
+- Displays:
+  - Profile picture
+  - Name
+  - Description
+  - List of posts you have created
+- **Edit Profile**: Update your profile details, including:
+  - Name
+  - Age
+  - Gender
+  - Description
+  - Profile picture
+  - Privacy toggle (private account mode)
 
-### `npm test`
+### 4. **Private Account Mode**
+- When enabled, your account becomes private:
+  - Other users cannot find you in search results.
+  - Your posts are hidden from others unless they are your friends.
+- Turning off privacy mode makes your account visible to everyone.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 5. **Search and User Profiles**
+- Search for users by nickname.
+- Viewing a user's profile shows:
+  - Their profile picture
+  - Name
+  - Description
+  - Posts (if their account is public or you are friends)
+- Actions available:
+  - **Add Friend**: Sends a friend request.
+  - **Send Message**: Sends a direct message.
 
-### `npm run build`
+### 6. **Friend Requests**
+- Friend requests appear in the **Notification Icon** in the navbar.
+- Notifications display a number representing pending requests.
+- Accepting a friend request:
+  - Adds the user to your friend list.
+  - Grants access to their posts, even if their account is private.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 7. **Messaging**
+- Messages appear in the **Message Icon** in the navbar.
+- Notifications display the sender's username and message.
+- Respond to messages directly from the inbox.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 8. **Homepage**
+- Displays posts from users you are friends with.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 9. **Explore Section**
+- Available on larger screens:
+  - Shows posts from all users with public accounts.
+- On smaller screens:
+  - The explore section is combined with the search component.
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## How It Works
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **Sign Up or Log In**: Create an account or use the demo credentials to log in.
+2. **Explore and Interact**:
+   - Use the navbar to navigate between home, search, create, and profile sections.
+   - Search for users to view their profiles, add them as friends, or send messages.
+3. **Manage Your Profile**:
+   - Edit your details, toggle privacy, and upload a profile picture.
+4. **Post and Share**:
+   - Create new posts and share them with friends or the public.
+5. **Connect with Others**:
+   - Accept friend requests to expand your network.
+   - Send and receive messages for private conversations.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Technologies Used
 
-## Learn More
+- **React.js**: Frontend framework for building the UI.
+- **React Router**: For navigation and routing between pages.
+- **MockAPI**: Used for storing and fetching user data, posts, and messages.
+- **Tailwind CSS**: For responsive and modern styling.
+- **Framer Motion**: For animations and transitions.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Installation
 
-### Code Splitting
+To run this project locally:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/starways.git
+   cd starways
